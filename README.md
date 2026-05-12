@@ -13,7 +13,17 @@ Projekt z grafiki komputerowej w C++/OpenGL/GLM. Repozytorium bazuje na paczce l
 
 ## Aktualny stan
 
-Starter OpenGL jest zachowany jako punkt wyjscia. Kolejny etap to dodanie pierwszych modulow projektu: `CameraController`, `EngineSimulator`, `Cylinder` i proceduralnych meshy silnika.
+Starter OpenGL jest zachowany jako punkt wyjscia, ale repo ma juz pierwsze moduly projektu: `CameraController` i `EngineSimulator`. Aktualny plan checkpointow jest w [docs/PLAN_DZIALANIA.md](docs/PLAN_DZIALANIA.md).
+
+## Sterowanie w aktualnej wersji
+
+- `A/D` - obrot kamery,
+- `Q/E` - oddalenie/przyblizenie,
+- `1/2/3/4` - presety kamery,
+- `W/S` - gaz,
+- `SPACE` - pauza/wznowienie,
+- `R` - reset animacji, RPM i gazu,
+- `ESC` - wyjscie.
 
 ## Build przez Makefile
 

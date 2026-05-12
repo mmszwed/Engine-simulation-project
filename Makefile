@@ -1,20 +1,13 @@
 APP=engine_simulator
 CXX=g++
 
-UNAME_S := $(shell uname -s 2>/dev/null)
 EXEEXT :=
 
 COMMON_CXXFLAGS=-std=c++17 -Wall -Wextra -Iinclude -Ithird_party
-SRC=src/cube.cpp src/lodepng.cpp src/main_file.cpp src/model.cpp src/shaderprogram.cpp src/sphere.cpp src/teapot.cpp src/torus.cpp
-HEADERS=include/allmodels.h include/constants.h include/cube.h include/lodepng.h include/model.h include/myCube.h include/shaderprogram.h include/sphere.h include/teapot.h include/torus.h
+SRC=src/CameraController.cpp src/Cylinder.cpp src/EngineMeshes.cpp src/EngineSimulator.cpp src/cube.cpp src/lodepng.cpp src/main_file.cpp src/model.cpp src/shaderprogram.cpp src/sphere.cpp src/teapot.cpp src/torus.cpp
+HEADERS=include/CameraController.h include/Cylinder.h include/EngineMeshes.h include/EngineSimulator.h include/allmodels.h include/constants.h include/cube.h include/lodepng.h include/model.h include/myCube.h include/shaderprogram.h include/sphere.h include/teapot.h include/torus.h
 
-ifeq ($(UNAME_S),Darwin)
-APP_NAME=$(APP)
-CXXFLAGS=$(COMMON_CXXFLAGS) -I/opt/homebrew/include
-LDFLAGS=-L/opt/homebrew/lib
-LIBS=-lglfw -lGLEW -framework OpenGL
-RM=rm -f
-else
+ifeq ($(OS),Windows_NT)
 APP_NAME=$(APP).exe
 CXXFLAGS=$(COMMON_CXXFLAGS) -Ithird_party/include
 LDFLAGS=-Lthird_party/lib
@@ -23,7 +16,22 @@ CXXFLAGS += -I$(MINGW_PREFIX)/include
 LDFLAGS += -L$(MINGW_PREFIX)/lib
 endif
 LIBS=-lglfw3 -lglew32 -lopengl32 -lgdi32
+RM=cmd /C del /Q /F
+else
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+APP_NAME=$(APP)
+CXXFLAGS=$(COMMON_CXXFLAGS) -I/opt/homebrew/include
+LDFLAGS=-L/opt/homebrew/lib
+LIBS=-lglfw -lGLEW -framework OpenGL
 RM=rm -f
+else
+APP_NAME=$(APP)
+CXXFLAGS=$(COMMON_CXXFLAGS)
+LDFLAGS=
+LIBS=-lglfw -lGLEW -lGL
+RM=rm -f
+endif
 endif
 
 $(APP_NAME): $(SRC) $(HEADERS)

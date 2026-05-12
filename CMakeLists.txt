@@ -7,6 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(engine_simulator
+    src/CameraController.cpp
+    src/Cylinder.cpp
+    src/EngineMeshes.cpp
+    src/EngineSimulator.cpp
     src/cube.cpp
     src/lodepng.cpp
     src/main_file.cpp

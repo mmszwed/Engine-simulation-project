@@ -1,0 +1,14 @@
+engine_simulator
+main_file
+*.exe
+*.obj
+*.o
+*.ilk
+*.pdb
+*.user
+*.suo
+.vs/
+Debug/
+Release/
+x64/
+build/

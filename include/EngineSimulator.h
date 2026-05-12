@@ -36,6 +36,7 @@ private:
 	void drawEngineBlockCutaway(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
 	void drawCrankshaftAssembly(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
 	void drawValveTrain(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
+	void drawTimingChain(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
 	void drawManifolds(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
 	void drawStatusPanel(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
 	void drawMesh(const EngineMesh& mesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model, const glm::vec4& color) const;

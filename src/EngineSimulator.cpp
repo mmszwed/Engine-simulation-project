@@ -93,8 +93,8 @@ void EngineSimulator::initMeshes() {
 }
 
 void EngineSimulator::drawEngineBlockCutaway(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
-	const glm::vec4 blockColor(0.50f, 0.53f, 0.50f, 1.0f);
-	const glm::vec4 edgeColor(0.18f, 0.42f, 0.58f, 1.0f);
+	const glm::vec4 blockColor(0.57f, 0.58f, 0.53f, 1.0f);
+	const glm::vec4 edgeColor(0.12f, 0.44f, 0.64f, 1.0f);
 	const glm::mat4 base = glm::mat4(1.0f);
 
 	glm::mat4 lowerCrankcase = glm::translate(base, glm::vec3(0.0f, -1.30f, 0.16f));
@@ -103,7 +103,7 @@ void EngineSimulator::drawEngineBlockCutaway(ShaderProgram* shader, const glm::m
 
 	glm::mat4 rearWall = glm::translate(base, glm::vec3(0.0f, -0.18f, 0.78f));
 	rearWall = glm::scale(rearWall, glm::vec3(5.9f, 2.35f, 0.18f));
-	drawMesh(boxMesh, shader, view, projection, rearWall, glm::vec4(0.42f, 0.45f, 0.43f, 1.0f));
+	drawMesh(boxMesh, shader, view, projection, rearWall, glm::vec4(0.48f, 0.50f, 0.47f, 1.0f));
 
 	glm::mat4 frontLip = glm::translate(base, glm::vec3(0.0f, -1.05f, -0.58f));
 	frontLip = glm::scale(frontLip, glm::vec3(5.9f, 0.28f, 0.16f));
@@ -137,6 +137,23 @@ void EngineSimulator::drawEngineBlockCutaway(ShaderProgram* shader, const glm::m
 		glm::mat4 deckRing = glm::translate(base, glm::vec3(x, 1.18f, 0.0f));
 		deckRing = glm::scale(deckRing, glm::vec3(0.80f, 0.10f, 0.80f));
 		drawMesh(cylinderMesh, shader, view, projection, deckRing, glm::vec4(0.60f, 0.62f, 0.58f, 1.0f));
+
+		glm::mat4 bearingCap = glm::translate(base, glm::vec3(x, -1.35f, -0.18f));
+		bearingCap = glm::scale(bearingCap, glm::vec3(0.64f, 0.22f, 0.52f));
+		drawMesh(boxMesh, shader, view, projection, bearingCap, glm::vec4(0.34f, 0.36f, 0.34f, 1.0f));
+
+		for (float boltX : {-0.26f, 0.26f}) {
+			glm::mat4 capBolt = glm::translate(base, glm::vec3(x + boltX, -1.18f, -0.42f));
+			capBolt = glm::scale(capBolt, glm::vec3(0.06f, 0.08f, 0.06f));
+			drawMesh(cylinderMesh, shader, view, projection, capBolt, glm::vec4(0.10f, 0.11f, 0.11f, 1.0f));
+		}
+	}
+
+	for (int i = 0; i < 9; ++i) {
+		const float x = -2.8f + i * 0.7f;
+		glm::mat4 railBolt = glm::translate(base, glm::vec3(x, -0.87f, -0.70f));
+		railBolt = glm::scale(railBolt, glm::vec3(0.055f, 0.075f, 0.055f));
+		drawMesh(cylinderMesh, shader, view, projection, railBolt, glm::vec4(0.12f, 0.13f, 0.13f, 1.0f));
 	}
 }
 
@@ -170,6 +187,11 @@ void EngineSimulator::drawCrankshaftAssembly(ShaderProgram* shader, const glm::m
 		counterweight = glm::rotate(counterweight, phase, glm::vec3(1.0f, 0.0f, 0.0f));
 		counterweight = glm::scale(counterweight, glm::vec3(0.46f, 0.16f, 0.34f));
 		drawMesh(boxMesh, shader, view, projection, counterweight, counterweightColor);
+
+		glm::mat4 journalCollar = glm::translate(base, glm::vec3(x, -1.05f, 0.0f));
+		journalCollar = glm::rotate(journalCollar, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+		journalCollar = glm::scale(journalCollar, glm::vec3(0.26f, 0.12f, 0.26f));
+		drawMesh(cylinderMesh, shader, view, projection, journalCollar, glm::vec4(0.30f, 0.32f, 0.32f, 1.0f));
 	}
 
 	glm::mat4 flywheel = glm::translate(base, glm::vec3(3.20f, -1.05f, 0.0f));
@@ -197,8 +219,13 @@ void EngineSimulator::drawValveTrain(ShaderProgram* shader, const glm::mat4& vie
 			const float x = -2.1f + i * 1.4f;
 			glm::mat4 lobe = glm::translate(base, glm::vec3(x, 2.25f, z));
 			lobe = glm::rotate(lobe, camAngle + i * PI * 0.5f + row * PI * 0.25f, glm::vec3(1.0f, 0.0f, 0.0f));
-			lobe = glm::scale(lobe, glm::vec3(0.22f, 0.12f, 0.34f));
+			lobe = glm::scale(lobe, glm::vec3(0.26f, 0.12f, 0.40f));
 			drawMesh(boxMesh, shader, view, projection, lobe, lobeColor);
+
+			glm::mat4 camBearing = glm::translate(base, glm::vec3(x + 0.40f, 2.25f, z));
+			camBearing = glm::rotate(camBearing, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+			camBearing = glm::scale(camBearing, glm::vec3(0.18f, 0.10f, 0.18f));
+			drawMesh(cylinderMesh, shader, view, projection, camBearing, glm::vec4(0.58f, 0.60f, 0.56f, 1.0f));
 		}
 	}
 
@@ -210,15 +237,65 @@ void EngineSimulator::drawValveTrain(ShaderProgram* shader, const glm::mat4& vie
 		wheel = glm::rotate(wheel, (gear == 0 ? crankAngle : crankAngle * 0.5f) * PI / 180.0f, glm::vec3(0.0f, 1.0f, 0.0f));
 		wheel = glm::scale(wheel, glm::vec3(0.42f, 0.12f, 0.42f));
 		drawMesh(cylinderMesh, shader, view, projection, wheel, glm::vec4(0.18f, 0.19f, 0.18f, 1.0f));
+
+		for (int tooth = 0; tooth < 12; ++tooth) {
+			const float a = tooth * 2.0f * PI / 12.0f + (gear == 0 ? crankAngle : crankAngle * 0.5f) * PI / 180.0f;
+			glm::mat4 gearTooth = glm::translate(base, glm::vec3(-3.38f, y + 0.45f * std::sin(a), z + 0.45f * std::cos(a)));
+			gearTooth = glm::rotate(gearTooth, a, glm::vec3(1.0f, 0.0f, 0.0f));
+			gearTooth = glm::scale(gearTooth, glm::vec3(0.08f, 0.08f, 0.05f));
+			drawMesh(boxMesh, shader, view, projection, gearTooth, glm::vec4(0.08f, 0.08f, 0.08f, 1.0f));
+		}
 	}
 
-	glm::mat4 chainLeft = glm::translate(base, glm::vec3(-3.42f, 0.55f, -0.54f));
-	chainLeft = glm::scale(chainLeft, glm::vec3(0.10f, 3.25f, 0.10f));
-	drawMesh(boxMesh, shader, view, projection, chainLeft, glm::vec4(0.05f, 0.05f, 0.05f, 1.0f));
+	drawTimingChain(shader, view, projection);
+}
 
-	glm::mat4 chainRight = glm::translate(base, glm::vec3(-3.42f, 0.55f, 0.54f));
-	chainRight = glm::scale(chainRight, glm::vec3(0.10f, 3.25f, 0.10f));
-	drawMesh(boxMesh, shader, view, projection, chainRight, glm::vec4(0.05f, 0.05f, 0.05f, 1.0f));
+void EngineSimulator::drawTimingChain(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
+	const glm::mat4 base = glm::mat4(1.0f);
+	const glm::vec3 bottom(-3.42f, -1.05f, 0.0f);
+	const glm::vec3 topIntake(-3.42f, 2.25f, -0.46f);
+	const glm::vec3 topExhaust(-3.42f, 2.25f, 0.46f);
+	const float leftLength = glm::length(topIntake - bottom);
+	const float topLength = glm::length(topExhaust - topIntake);
+	const float rightLength = glm::length(bottom - topExhaust);
+	const float totalLength = leftLength + topLength + rightLength;
+	const int linkCount = 44;
+	const float linkSpacing = totalLength / static_cast<float>(linkCount);
+	const float travel = std::fmod(crankAngle * 0.018f, totalLength);
+
+	for (int i = 0; i < linkCount; ++i) {
+		float distance = std::fmod(i * linkSpacing + travel, totalLength);
+		glm::vec3 start;
+		glm::vec3 end;
+		float local = distance;
+
+		if (local < leftLength) {
+			const float t = local / leftLength;
+			start = bottom;
+			end = topIntake;
+			local = t;
+		} else if (local < leftLength + topLength) {
+			const float t = (local - leftLength) / topLength;
+			start = topIntake;
+			end = topExhaust;
+			local = t;
+		} else {
+			const float t = (local - leftLength - topLength) / rightLength;
+			start = topExhaust;
+			end = bottom;
+			local = t;
+		}
+
+		const glm::vec3 point = start + (end - start) * local;
+		const glm::vec3 tangent = glm::normalize(end - start);
+		const float angleX = std::atan2(tangent.z, tangent.y);
+
+		glm::mat4 link = glm::translate(base, point);
+		link = glm::rotate(link, angleX, glm::vec3(1.0f, 0.0f, 0.0f));
+		link = glm::scale(link, glm::vec3(0.11f, 0.16f, 0.045f));
+		const glm::vec4 chainColor = i % 2 == 0 ? glm::vec4(0.035f, 0.035f, 0.035f, 1.0f) : glm::vec4(0.12f, 0.12f, 0.11f, 1.0f);
+		drawMesh(boxMesh, shader, view, projection, link, chainColor);
+	}
 }
 
 void EngineSimulator::drawManifolds(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {

@@ -60,7 +60,8 @@ Status:
 - blok silnika jest rysowany jako otwarty przekroj, zeby bylo widac tloki, korbowody i wal,
 - kazdy cylinder ma 4 zawory: 2 ssace i 2 wydechowe,
 - widac sprezyny zaworowe, centralny wtrysk/swieca oraz proste dzwigienki,
-- dodane sa uproszczone kolektory dolotowe i wydechowe.
+- dodane sa uproszczone kolektory dolotowe i wydechowe,
+- dodane sa pierscienie tlokowe, denka tlokow, sruby glowicy, lozyska walu i zeby kol rozrzadu.
 
 Dobry moment na push: jeden cylinder ma tlok, wal/korbowe polaczenie i zawory reagujace na faze.
 
@@ -76,7 +77,7 @@ Zakres:
 - [x] kolo zamachowe,
 - [x] blok silnika w przekroju,
 - [x] widoczne czopy i przeciwwagi walu,
-- [x] uproszczony uklad rozrzadu: dwa walki, krzywki, kola i lancuch/pasek.
+- [x] uproszczony uklad rozrzadu: dwa walki, krzywki, kola i animowany lancuch.
 
 Dobry moment na push: widac cztery cylindry pracujace z roznymi fazami.
 

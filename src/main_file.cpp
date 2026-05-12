@@ -43,7 +43,7 @@ void freeOpenGLProgram(GLFWwindow* window) {
 }
 
 void drawScene(GLFWwindow* window) {
-	glClearColor(0.08f, 0.09f, 0.10f, 1.0f);
+	glClearColor(0.16f, 0.17f, 0.18f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	int width = 0;
@@ -55,7 +55,7 @@ void drawScene(GLFWwindow* window) {
 	const glm::mat4 view = camera.getViewMatrix();
 	const glm::mat4 projection = glm::perspective(50.0f * PI / 180.0f, aspect, 0.1f, 80.0f);
 
-	engine.draw(spLambert, view, projection);
+	engine.draw(spEngine, view, projection);
 
 	glfwSwapBuffers(window);
 }

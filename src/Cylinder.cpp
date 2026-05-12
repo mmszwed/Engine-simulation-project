@@ -15,10 +15,17 @@
 Cylinder::Cylinder(int index, float xPosition, float phaseOffset)
 	: index(index),
 	  xPosition(xPosition),
-	  phaseOffset(phaseOffset) {
+	  phaseOffset(phaseOffset),
+	  currentMetalTexture(0),
+	  currentDarkMetalTexture(0),
+	  currentRubberTexture(0) {
 }
 
-void Cylinder::draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float crankAngle) const {
+void Cylinder::draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float crankAngle, unsigned int metalTexture, unsigned int darkMetalTexture, unsigned int rubberTexture) const {
+	currentMetalTexture = metalTexture;
+	currentDarkMetalTexture = darkMetalTexture;
+	currentRubberTexture = rubberTexture;
+
 	const float currentPhase = phase(crankAngle);
 	const StrokeType stroke = getStroke(crankAngle);
 	const float pistonY = pistonOffset(currentPhase);
@@ -44,8 +51,8 @@ void Cylinder::draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, S
 	drawMesh(cylinderMesh, shader, view, projection, piston, glm::vec4(0.86f, 0.86f, 0.80f, 1.0f));
 	drawPistonDetails(cylinderMesh, shader, view, projection, pistonY);
 
-	const glm::mat4 rod = alignBoxBetween(crankPin, pistonPin, 0.10f);
-	drawMesh(boxMesh, shader, view, projection, rod, glm::vec4(0.70f, 0.70f, 0.64f, 1.0f));
+	const glm::mat4 rod = alignCylinderBetween(crankPin, pistonPin, 0.10f);
+	drawMesh(cylinderMesh, shader, view, projection, rod, glm::vec4(0.70f, 0.70f, 0.64f, 1.0f));
 
 	glm::mat4 crankPinMarker = glm::translate(glm::mat4(1.0f), crankPin);
 	crankPinMarker = glm::scale(crankPinMarker, glm::vec3(0.18f, 0.18f, 0.18f));
@@ -106,6 +113,27 @@ glm::mat4 Cylinder::alignBoxBetween(const glm::vec3& start, const glm::vec3& end
 	return model;
 }
 
+glm::mat4 Cylinder::alignCylinderBetween(const glm::vec3& start, const glm::vec3& end, float radius) const {
+	const glm::vec3 middle = (start + end) * 0.5f;
+	const glm::vec3 direction = end - start;
+	const float length = glm::length(direction);
+
+	glm::mat4 model = glm::translate(glm::mat4(1.0f), middle);
+	if (length > 0.0001f) {
+		const glm::vec3 up(0.0f, 1.0f, 0.0f);
+		const glm::vec3 target = glm::normalize(direction);
+		const float dotValue = std::clamp(glm::dot(up, target), -1.0f, 1.0f);
+		const float angle = std::acos(dotValue);
+		glm::vec3 axis = glm::cross(up, target);
+		if (glm::length(axis) > 0.0001f) {
+			model = glm::rotate(model, angle, glm::normalize(axis));
+		}
+	}
+
+	model = glm::scale(model, glm::vec3(radius, length, radius));
+	return model;
+}
+
 glm::vec4 Cylinder::strokeColor(StrokeType stroke) const {
 	switch (stroke) {
 	case StrokeType::Intake:
@@ -119,6 +147,17 @@ glm::vec4 Cylinder::strokeColor(StrokeType stroke) const {
 	default:
 		return glm::vec4(0.45f, 0.49f, 0.51f, 1.0f);
 	}
+}
+
+unsigned int Cylinder::chooseTexture(const glm::vec4& color) const {
+	const float brightness = (color.r + color.g + color.b) / 3.0f;
+	if (brightness < 0.20f) {
+		return currentRubberTexture;
+	}
+	if (brightness < 0.42f) {
+		return currentDarkMetalTexture;
+	}
+	return currentMetalTexture;
 }
 
 void Cylinder::drawValvePair(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float z, float drop, const glm::vec4& color) const {
@@ -195,5 +234,15 @@ void Cylinder::drawMesh(const EngineMesh& mesh, ShaderProgram* shader, const glm
 	glUniformMatrix4fv(shader->u("M"), 1, false, glm::value_ptr(model));
 	glUniform4fv(shader->u("color"), 1, glm::value_ptr(color));
 	glUniform4f(shader->u("lightDir"), 0.0f, 0.0f, 1.0f, 0.0f);
+	glUniform3f(shader->u("dirLightDirView"), -0.35f, -0.85f, -0.35f);
+	glUniform3f(shader->u("pointLightPosView"), 2.2f, 3.2f, 3.2f);
+	glUniform1f(shader->u("shininess"), 48.0f);
+	glUniform1f(shader->u("specularStrength"), 0.42f);
+	const unsigned int texture = chooseTexture(color);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glUniform1i(shader->u("texture0"), 0);
+	glUniform1i(shader->u("useTexture"), texture != 0 ? 1 : 0);
 	mesh.draw();
+	glBindTexture(GL_TEXTURE_2D, 0);
 }

@@ -107,12 +107,21 @@ Cel: spelnic wymagania oceniania.
 
 Zakres:
 
-- minimum 2 tekstury,
-- minimum 2 zrodla swiatla,
-- widoczne cieniowanie,
-- poprawne normalne,
+- [x] minimum 2 tekstury,
+- [x] minimum 2 zrodla swiatla,
+- [x] widoczne cieniowanie,
+- [x] poprawne normalne dla proceduralnych cylindrow i boxow,
 - brak zakazanych funkcji starego OpenGL,
 - brak koloru rozowego.
+
+Status:
+
+- dodany shader `v_engine.glsl` / `f_engine.glsl`,
+- scena uzywa modelu Blinn-Phong,
+- jest swiatlo kierunkowe i punktowe,
+- metalowe elementy maja specular highlight,
+- cylindry maja wiecej segmentow, a korbowody sa walcami zamiast boxow,
+- generowane sa proceduralne tekstury: jasny metal, ciemny metal i ciemny material gumowy.
 
 ## Checkpoint 6 - finalizacja
 

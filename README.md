@@ -15,6 +15,8 @@ Projekt z grafiki komputerowej w C++/OpenGL/GLM. Repozytorium bazuje na paczce l
 
 Starter OpenGL jest zachowany jako punkt wyjscia, ale repo ma juz pierwsze moduly projektu: `CameraController` i `EngineSimulator`. Aktualny plan checkpointow jest w [docs/PLAN_DZIALANIA.md](docs/PLAN_DZIALANIA.md).
 
+Aktualna scena uzywa shadera Blinn-Phong z dwoma zrodlami swiatla, proceduralnych tekstur materialow oraz proceduralnych meshy silnika.
+
 ## Sterowanie w aktualnej wersji
 
 Program startuje w pauzie, z minimalnym gazem. Nacisnij `SPACE`, zeby rozpoczac animacje.

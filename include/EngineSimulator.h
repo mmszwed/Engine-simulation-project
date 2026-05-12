@@ -30,9 +30,16 @@ private:
 
 	EngineMesh boxMesh;
 	EngineMesh cylinderMesh;
+	unsigned int metalTexture;
+	unsigned int darkMetalTexture;
+	unsigned int rubberTexture;
 	std::vector<Cylinder> cylinders;
 
 	void initMeshes();
+	void initTextures();
+	void destroyTextures();
+	unsigned int createProceduralTexture(int variant) const;
+	unsigned int chooseTexture(const glm::vec4& color) const;
 	void drawEngineBlockCutaway(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
 	void drawCrankshaftAssembly(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
 	void drawValveTrain(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;

@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <cmath>
+#include <vector>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -20,7 +21,10 @@ EngineSimulator::EngineSimulator()
 	  paused(true),
 	  spaceWasPressed(false),
 	  resetWasPressed(false),
-	  meshesReady(false) {
+	  meshesReady(false),
+	  metalTexture(0),
+	  darkMetalTexture(0),
+	  rubberTexture(0) {
 	cylinders.emplace_back(0, -2.1f, 0.0f);
 	cylinders.emplace_back(1, -0.7f, 180.0f);
 	cylinders.emplace_back(2, 0.7f, 360.0f);
@@ -67,7 +71,7 @@ void EngineSimulator::draw(ShaderProgram* shader, const glm::mat4& view, const g
 	drawEngineBlockCutaway(shader, view, projection);
 
 	for (const Cylinder& cylinder : cylinders) {
-		cylinder.draw(boxMesh, cylinderMesh, shader, view, projection, crankAngle);
+		cylinder.draw(boxMesh, cylinderMesh, shader, view, projection, crankAngle, metalTexture, darkMetalTexture, rubberTexture);
 	}
 
 	drawCrankshaftAssembly(shader, view, projection);
@@ -79,6 +83,7 @@ void EngineSimulator::draw(ShaderProgram* shader, const glm::mat4& view, const g
 void EngineSimulator::destroy() {
 	boxMesh.destroy();
 	cylinderMesh.destroy();
+	destroyTextures();
 	meshesReady = false;
 }
 
@@ -88,8 +93,88 @@ void EngineSimulator::initMeshes() {
 	}
 
 	boxMesh = EngineMesh::createBox();
-	cylinderMesh = EngineMesh::createCylinder(32);
+	cylinderMesh = EngineMesh::createCylinder(64);
+	initTextures();
 	meshesReady = true;
+}
+
+void EngineSimulator::initTextures() {
+	if (metalTexture != 0) {
+		return;
+	}
+
+	metalTexture = createProceduralTexture(0);
+	darkMetalTexture = createProceduralTexture(1);
+	rubberTexture = createProceduralTexture(2);
+}
+
+void EngineSimulator::destroyTextures() {
+	if (metalTexture != 0) glDeleteTextures(1, &metalTexture);
+	if (darkMetalTexture != 0) glDeleteTextures(1, &darkMetalTexture);
+	if (rubberTexture != 0) glDeleteTextures(1, &rubberTexture);
+	metalTexture = 0;
+	darkMetalTexture = 0;
+	rubberTexture = 0;
+}
+
+unsigned int EngineSimulator::createProceduralTexture(int variant) const {
+	const int size = 64;
+	std::vector<unsigned char> pixels(size * size * 3);
+
+	for (int y = 0; y < size; ++y) {
+		for (int x = 0; x < size; ++x) {
+			const int index = (y * size + x) * 3;
+			const int stripe = (x / 6 + y / 17) % 2;
+			const int fine = (x * 13 + y * 7 + variant * 31) % 23;
+			unsigned char r = 0;
+			unsigned char g = 0;
+			unsigned char b = 0;
+
+			if (variant == 0) {
+				const unsigned char value = static_cast<unsigned char>(172 + stripe * 22 + fine);
+				r = value;
+				g = value;
+				b = static_cast<unsigned char>(value - 8);
+			} else if (variant == 1) {
+				const unsigned char value = static_cast<unsigned char>(62 + stripe * 20 + fine / 2);
+				r = value;
+				g = static_cast<unsigned char>(value + 2);
+				b = static_cast<unsigned char>(value + 4);
+			} else {
+				const unsigned char value = static_cast<unsigned char>(34 + stripe * 12 + fine / 3);
+				r = value;
+				g = value;
+				b = value;
+			}
+
+			pixels[index + 0] = r;
+			pixels[index + 1] = g;
+			pixels[index + 2] = b;
+		}
+	}
+
+	GLuint texture = 0;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, size, size, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	return texture;
+}
+
+unsigned int EngineSimulator::chooseTexture(const glm::vec4& color) const {
+	const float brightness = (color.r + color.g + color.b) / 3.0f;
+	if (brightness < 0.20f) {
+		return rubberTexture;
+	}
+	if (brightness < 0.42f) {
+		return darkMetalTexture;
+	}
+	return metalTexture;
 }
 
 void EngineSimulator::drawEngineBlockCutaway(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
@@ -367,5 +452,15 @@ void EngineSimulator::drawMesh(const EngineMesh& mesh, ShaderProgram* shader, co
 	glUniformMatrix4fv(shader->u("M"), 1, false, glm::value_ptr(model));
 	glUniform4fv(shader->u("color"), 1, glm::value_ptr(color));
 	glUniform4f(shader->u("lightDir"), 0.0f, 0.0f, 1.0f, 0.0f);
+	glUniform3f(shader->u("dirLightDirView"), -0.35f, -0.85f, -0.35f);
+	glUniform3f(shader->u("pointLightPosView"), 2.2f, 3.2f, 3.2f);
+	glUniform1f(shader->u("shininess"), 48.0f);
+	glUniform1f(shader->u("specularStrength"), 0.42f);
+	const unsigned int texture = chooseTexture(color);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glUniform1i(shader->u("texture0"), 0);
+	glUniform1i(shader->u("useTexture"), texture != 0 ? 1 : 0);
 	mesh.draw();
+	glBindTexture(GL_TEXTURE_2D, 0);
 }

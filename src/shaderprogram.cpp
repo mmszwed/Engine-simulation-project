@@ -25,6 +25,7 @@ ShaderProgram *spConstant;
 ShaderProgram* spColored;
 ShaderProgram* spTextured;
 ShaderProgram* spLambertTextured;
+ShaderProgram* spEngine;
 
 
 void initShaders() {
@@ -33,6 +34,7 @@ void initShaders() {
 	spTextured = new ShaderProgram("shaders/v_textured.glsl", NULL, "shaders/f_textured.glsl");
 	spColored = new ShaderProgram("shaders/v_colored.glsl", NULL, "shaders/f_colored.glsl");
 	spLambertTextured = new ShaderProgram("shaders/v_lamberttextured.glsl", NULL, "shaders/f_lamberttextured.glsl");
+	spEngine = new ShaderProgram("shaders/v_engine.glsl", NULL, "shaders/f_engine.glsl");
 }
 
 void freeShaders() {
@@ -41,6 +43,7 @@ void freeShaders() {
 	delete spTextured;
 	delete spColored;
 	delete spLambertTextured;
+	delete spEngine;
 }
 
 //Procedura wczytuje plik do tablicy znaków.

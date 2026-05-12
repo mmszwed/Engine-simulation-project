@@ -19,12 +19,14 @@ Zakres:
 
 Sterowanie:
 
+Program startuje w pauzie, z minimalnym gazem.
+
 - `A/D` - obrot kamery,
 - `Q/E` - oddalenie/przyblizenie,
 - `1/2/3/4` - presety kamery,
 - `W/S` - gaz,
 - `SPACE` - pauza/wznowienie,
-- `R` - reset animacji, RPM i gazu,
+- `R` - reset animacji, RPM i gazu oraz powrot do pauzy,
 - `ESC` - wyjscie.
 
 Status:
@@ -55,7 +57,10 @@ Status:
 - zawor ssacy otwiera sie na ssaniu,
 - zawor wydechowy otwiera sie na wydechu,
 - komora cylindra ma kolor fazy pracy,
-- blok silnika jest rysowany jako otwarty przekroj, zeby bylo widac tloki, korbowody i wal.
+- blok silnika jest rysowany jako otwarty przekroj, zeby bylo widac tloki, korbowody i wal,
+- kazdy cylinder ma 4 zawory: 2 ssace i 2 wydechowe,
+- widac sprezyny zaworowe, centralny wtrysk/swieca oraz proste dzwigienki,
+- dodane sa uproszczone kolektory dolotowe i wydechowe.
 
 Dobry moment na push: jeden cylinder ma tlok, wal/korbowe polaczenie i zawory reagujace na faze.
 
@@ -92,7 +97,7 @@ Status:
 - `W/S` zmienia gaz,
 - RPM plynnie dochodzi do wartosci docelowej,
 - `SPACE` przelacza pauze pojedynczym nacisnieciem,
-- `R` resetuje animacje, RPM i gaz,
+- `R` resetuje animacje, RPM i gaz oraz wraca do pauzy,
 - panel 3D pokazuje paski RPM/gazu i kontrolke pauzy.
 
 ## Checkpoint 5 - wymagania graficzne

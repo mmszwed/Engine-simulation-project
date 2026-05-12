@@ -14,10 +14,10 @@
 
 EngineSimulator::EngineSimulator()
 	: crankAngle(0.0f),
-	  rpm(900.0f),
-	  targetRpm(900.0f),
-	  throttle(0.15f),
-	  paused(false),
+	  rpm(120.0f),
+	  targetRpm(120.0f),
+	  throttle(0.0f),
+	  paused(true),
 	  spaceWasPressed(false),
 	  resetWasPressed(false),
 	  meshesReady(false) {
@@ -40,20 +40,23 @@ void EngineSimulator::update(GLFWwindow* window, float deltaTime) {
 	const bool resetPressed = glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
 	if (resetPressed && !resetWasPressed) {
 		crankAngle = 0.0f;
-		rpm = 900.0f;
-		targetRpm = 900.0f;
-		throttle = 0.15f;
-		paused = false;
+		rpm = 120.0f;
+		targetRpm = 120.0f;
+		throttle = 0.0f;
+		paused = true;
 	}
 	resetWasPressed = resetPressed;
 
 	throttle = std::clamp(throttle, 0.0f, 1.0f);
 
-	targetRpm = 700.0f + throttle * 4300.0f;
-	rpm += (targetRpm - rpm) * 3.0f * deltaTime;
+	const float minDemoRpm = 120.0f;
+	const float maxDemoRpm = 1200.0f;
+	targetRpm = minDemoRpm + throttle * (maxDemoRpm - minDemoRpm);
+	rpm += (targetRpm - rpm) * 2.2f * deltaTime;
 
 	if (!paused) {
-		const float degreesPerSecond = (rpm / 60.0f) * 360.0f;
+		const float animationScale = 0.35f;
+		const float degreesPerSecond = (rpm / 60.0f) * 360.0f * animationScale;
 		crankAngle = std::fmod(crankAngle + degreesPerSecond * deltaTime, 720.0f);
 	}
 }
@@ -69,6 +72,7 @@ void EngineSimulator::draw(ShaderProgram* shader, const glm::mat4& view, const g
 
 	drawCrankshaftAssembly(shader, view, projection);
 	drawValveTrain(shader, view, projection);
+	drawManifolds(shader, view, projection);
 	drawStatusPanel(shader, view, projection);
 }
 
@@ -217,6 +221,38 @@ void EngineSimulator::drawValveTrain(ShaderProgram* shader, const glm::mat4& vie
 	drawMesh(boxMesh, shader, view, projection, chainRight, glm::vec4(0.05f, 0.05f, 0.05f, 1.0f));
 }
 
+void EngineSimulator::drawManifolds(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
+	const glm::mat4 base = glm::mat4(1.0f);
+
+	glm::mat4 intakeRail = glm::translate(base, glm::vec3(0.0f, 1.82f, -1.05f));
+	intakeRail = glm::rotate(intakeRail, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+	intakeRail = glm::scale(intakeRail, glm::vec3(0.16f, 5.4f, 0.16f));
+	drawMesh(cylinderMesh, shader, view, projection, intakeRail, glm::vec4(0.28f, 0.37f, 0.42f, 1.0f));
+
+	glm::mat4 exhaustRail = glm::translate(base, glm::vec3(0.0f, 1.60f, 1.05f));
+	exhaustRail = glm::rotate(exhaustRail, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+	exhaustRail = glm::scale(exhaustRail, glm::vec3(0.18f, 5.4f, 0.18f));
+	drawMesh(cylinderMesh, shader, view, projection, exhaustRail, glm::vec4(0.40f, 0.32f, 0.25f, 1.0f));
+
+	for (int i = 0; i < 4; ++i) {
+		const float x = -2.1f + i * 1.4f;
+
+		glm::mat4 intakeRunner = glm::translate(base, glm::vec3(x, 1.66f, -0.72f));
+		intakeRunner = glm::rotate(intakeRunner, 0.60f, glm::vec3(1.0f, 0.0f, 0.0f));
+		intakeRunner = glm::scale(intakeRunner, glm::vec3(0.10f, 0.78f, 0.10f));
+		drawMesh(cylinderMesh, shader, view, projection, intakeRunner, glm::vec4(0.30f, 0.43f, 0.50f, 1.0f));
+
+		glm::mat4 exhaustRunner = glm::translate(base, glm::vec3(x, 1.48f, 0.72f));
+		exhaustRunner = glm::rotate(exhaustRunner, -0.60f, glm::vec3(1.0f, 0.0f, 0.0f));
+		exhaustRunner = glm::scale(exhaustRunner, glm::vec3(0.11f, 0.78f, 0.11f));
+		drawMesh(cylinderMesh, shader, view, projection, exhaustRunner, glm::vec4(0.50f, 0.38f, 0.26f, 1.0f));
+
+		glm::mat4 fuelLine = glm::translate(base, glm::vec3(x, 2.25f, -0.12f));
+		fuelLine = glm::scale(fuelLine, glm::vec3(0.04f, 0.62f, 0.04f));
+		drawMesh(cylinderMesh, shader, view, projection, fuelLine, glm::vec4(0.18f, 0.20f, 0.22f, 1.0f));
+	}
+}
+
 void EngineSimulator::drawStatusPanel(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
 	const glm::mat4 base = glm::mat4(1.0f);
 	const glm::vec3 panelOrigin(4.35f, 0.45f, -0.95f);
@@ -229,7 +265,7 @@ void EngineSimulator::drawStatusPanel(ShaderProgram* shader, const glm::mat4& vi
 	rpmTrack = glm::scale(rpmTrack, glm::vec3(1.05f, 0.12f, 0.04f));
 	drawMesh(boxMesh, shader, view, projection, rpmTrack, glm::vec4(0.25f, 0.27f, 0.28f, 1.0f));
 
-	const float rpmFillValue = std::clamp((rpm - 700.0f) / 4300.0f, 0.0f, 1.0f);
+	const float rpmFillValue = std::clamp((rpm - 120.0f) / 1080.0f, 0.0f, 1.0f);
 	glm::mat4 rpmFill = glm::translate(base, panelOrigin + glm::vec3(-0.525f + 0.525f * rpmFillValue, 0.35f, -0.12f));
 	rpmFill = glm::scale(rpmFill, glm::vec3(1.05f * rpmFillValue, 0.13f, 0.05f));
 	drawMesh(boxMesh, shader, view, projection, rpmFill, glm::vec4(0.20f, 0.55f, 0.78f, 1.0f));

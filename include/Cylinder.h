@@ -30,6 +30,9 @@ private:
 	float valveOffset(StrokeType stroke, StrokeType activeStroke) const;
 	glm::mat4 alignBoxBetween(const glm::vec3& start, const glm::vec3& end, float thickness) const;
 	glm::vec4 strokeColor(StrokeType stroke) const;
+	void drawValvePair(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float z, float drop, const glm::vec4& color) const;
+	void drawInjector(const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
+	void drawSpring(const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float x, float z, float drop) const;
 	void drawMesh(const EngineMesh& mesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model, const glm::vec4& color) const;
 };
 

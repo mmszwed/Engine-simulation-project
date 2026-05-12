@@ -49,21 +49,9 @@ void Cylinder::draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, S
 	const float intakeDrop = valveOffset(stroke, StrokeType::Intake);
 	const float exhaustDrop = valveOffset(stroke, StrokeType::Exhaust);
 
-	glm::mat4 intakeStem = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition - 0.22f, 1.66f - intakeDrop, -0.22f));
-	intakeStem = glm::scale(intakeStem, glm::vec3(0.07f, 0.52f, 0.07f));
-	drawMesh(cylinderMesh, shader, view, projection, intakeStem, glm::vec4(0.66f, 0.72f, 0.74f, 1.0f));
-
-	glm::mat4 intakeHead = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition - 0.22f, 1.36f - intakeDrop, -0.22f));
-	intakeHead = glm::scale(intakeHead, glm::vec3(0.18f, 0.08f, 0.18f));
-	drawMesh(cylinderMesh, shader, view, projection, intakeHead, glm::vec4(0.66f, 0.72f, 0.74f, 1.0f));
-
-	glm::mat4 exhaustStem = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition + 0.22f, 1.66f - exhaustDrop, -0.22f));
-	exhaustStem = glm::scale(exhaustStem, glm::vec3(0.07f, 0.52f, 0.07f));
-	drawMesh(cylinderMesh, shader, view, projection, exhaustStem, glm::vec4(0.72f, 0.67f, 0.60f, 1.0f));
-
-	glm::mat4 exhaustHead = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition + 0.22f, 1.36f - exhaustDrop, -0.22f));
-	exhaustHead = glm::scale(exhaustHead, glm::vec3(0.18f, 0.08f, 0.18f));
-	drawMesh(cylinderMesh, shader, view, projection, exhaustHead, glm::vec4(0.72f, 0.67f, 0.60f, 1.0f));
+	drawValvePair(boxMesh, cylinderMesh, shader, view, projection, -0.25f, intakeDrop, glm::vec4(0.66f, 0.72f, 0.74f, 1.0f));
+	drawValvePair(boxMesh, cylinderMesh, shader, view, projection, 0.25f, exhaustDrop, glm::vec4(0.72f, 0.67f, 0.60f, 1.0f));
+	drawInjector(cylinderMesh, shader, view, projection);
 }
 
 StrokeType Cylinder::getStroke(float crankAngle) const {
@@ -124,6 +112,49 @@ glm::vec4 Cylinder::strokeColor(StrokeType stroke) const {
 		return glm::vec4(0.66f, 0.18f, 0.14f, 1.0f);
 	default:
 		return glm::vec4(0.45f, 0.49f, 0.51f, 1.0f);
+	}
+}
+
+void Cylinder::drawValvePair(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float z, float drop, const glm::vec4& color) const {
+	const float xOffsets[2] = {-0.20f, 0.20f};
+	for (float localX : xOffsets) {
+		const float valveX = xPosition + localX;
+		glm::mat4 stem = glm::translate(glm::mat4(1.0f), glm::vec3(valveX, 1.66f - drop, z));
+		stem = glm::scale(stem, glm::vec3(0.055f, 0.55f, 0.055f));
+		drawMesh(cylinderMesh, shader, view, projection, stem, color);
+
+		glm::mat4 head = glm::translate(glm::mat4(1.0f), glm::vec3(valveX, 1.34f - drop, z));
+		head = glm::scale(head, glm::vec3(0.15f, 0.07f, 0.15f));
+		drawMesh(cylinderMesh, shader, view, projection, head, color);
+
+		glm::mat4 retainer = glm::translate(glm::mat4(1.0f), glm::vec3(valveX, 1.96f - drop, z));
+		retainer = glm::scale(retainer, glm::vec3(0.15f, 0.05f, 0.15f));
+		drawMesh(cylinderMesh, shader, view, projection, retainer, glm::vec4(0.78f, 0.78f, 0.72f, 1.0f));
+
+		drawSpring(cylinderMesh, shader, view, projection, valveX, z, drop);
+
+		glm::mat4 rocker = glm::translate(glm::mat4(1.0f), glm::vec3(valveX, 2.12f, z));
+		rocker = glm::rotate(rocker, localX > 0.0f ? 0.25f : -0.25f, glm::vec3(0.0f, 0.0f, 1.0f));
+		rocker = glm::scale(rocker, glm::vec3(0.32f, 0.06f, 0.08f));
+		drawMesh(boxMesh, shader, view, projection, rocker, glm::vec4(0.50f, 0.52f, 0.50f, 1.0f));
+	}
+}
+
+void Cylinder::drawInjector(const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
+	glm::mat4 injector = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, 1.95f, 0.0f));
+	injector = glm::scale(injector, glm::vec3(0.08f, 0.42f, 0.08f));
+	drawMesh(cylinderMesh, shader, view, projection, injector, glm::vec4(0.82f, 0.66f, 0.18f, 1.0f));
+
+	glm::mat4 tip = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, 1.63f, 0.0f));
+	tip = glm::scale(tip, glm::vec3(0.12f, 0.08f, 0.12f));
+	drawMesh(cylinderMesh, shader, view, projection, tip, glm::vec4(0.92f, 0.82f, 0.42f, 1.0f));
+}
+
+void Cylinder::drawSpring(const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float x, float z, float drop) const {
+	for (int ring = 0; ring < 5; ++ring) {
+		glm::mat4 springRing = glm::translate(glm::mat4(1.0f), glm::vec3(x, 1.76f + ring * 0.055f - drop, z));
+		springRing = glm::scale(springRing, glm::vec3(0.13f, 0.025f, 0.13f));
+		drawMesh(cylinderMesh, shader, view, projection, springRing, glm::vec4(0.15f, 0.15f, 0.14f, 1.0f));
 	}
 }
 

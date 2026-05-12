@@ -17,12 +17,14 @@ Starter OpenGL jest zachowany jako punkt wyjscia, ale repo ma juz pierwsze modul
 
 ## Sterowanie w aktualnej wersji
 
+Program startuje w pauzie, z minimalnym gazem. Nacisnij `SPACE`, zeby rozpoczac animacje.
+
 - `A/D` - obrot kamery,
 - `Q/E` - oddalenie/przyblizenie,
 - `1/2/3/4` - presety kamery,
 - `W/S` - gaz,
 - `SPACE` - pauza/wznowienie,
-- `R` - reset animacji, RPM i gazu,
+- `R` - reset animacji, RPM i gazu oraz powrot do pauzy,
 - `ESC` - wyjscie.
 
 ## Build przez Makefile

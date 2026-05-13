@@ -30,6 +30,7 @@ private:
 
 	EngineMesh boxMesh;
 	EngineMesh cylinderMesh;
+	EngineMesh halfCylinderMesh;
 	unsigned int metalTexture;
 	unsigned int darkMetalTexture;
 	unsigned int rubberTexture;

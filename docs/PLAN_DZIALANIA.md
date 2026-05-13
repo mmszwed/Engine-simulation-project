@@ -58,8 +58,11 @@ Status:
 - zawor wydechowy otwiera sie na wydechu,
 - komora cylindra ma kolor fazy pracy,
 - blok silnika jest rysowany jako otwarty przekroj, zeby bylo widac tloki, korbowody i wal,
+- cylindry maja polowiczny przekroj wzdluzny, zeby bylo widac ruch tloka w tulei,
 - kazdy cylinder ma 4 zawory: 2 ssace i 2 wydechowe,
 - widac sprezyny zaworowe, centralny wtrysk/swieca oraz proste dzwigienki,
+- zawory podnosza sie przy aktywnej fazie i sa polaczone popychaczami z odpowiednimi walkami rozrzadu,
+- dodana jest przekrojowa glowica z kanalami, prowadnicami i gniazdami zaworow,
 - dodane sa uproszczone kolektory dolotowe i wydechowe,
 - dodane sa pierscienie tlokowe, denka tlokow, sruby glowicy, lozyska walu i zeby kol rozrzadu.
 
@@ -134,3 +137,13 @@ Zakres:
 - czyszczenie kodu,
 - test na czysto,
 - przygotowanie krotkiego demo.
+
+## Polish wizualny
+
+Status:
+
+- dodane efekty faz pracy w cylindrach,
+- ssanie ma niebieski kanal przeplywu,
+- suw pracy ma pulsujacy blysk spalania,
+- wydech ma ciemny przeplyw i proste chmurki spalin,
+- sprezanie ma jasny znacznik w komorze.

@@ -22,6 +22,7 @@ public:
 	static EngineMesh createBox();
 	static EngineMesh createCylinder(int segments);
 	static EngineMesh createHalfCylinder(int segments);
+	static EngineMesh createHalfDisk(int segments);
 
 private:
 	GLuint vao;

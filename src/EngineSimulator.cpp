@@ -32,8 +32,8 @@ EngineSimulator::EngineSimulator()
 }
 
 void EngineSimulator::update(GLFWwindow* window, float deltaTime) {
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) throttle += 0.55f * deltaTime;
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) throttle -= 0.55f * deltaTime;
+	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) throttle += 0.55f * deltaTime;
+	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) throttle -= 0.55f * deltaTime;
 
 	const bool spacePressed = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
 	if (spacePressed && !spaceWasPressed) {
@@ -71,7 +71,7 @@ void EngineSimulator::draw(ShaderProgram* shader, const glm::mat4& view, const g
 	drawEngineBlockCutaway(shader, view, projection);
 
 	for (const Cylinder& cylinder : cylinders) {
-		cylinder.draw(boxMesh, cylinderMesh, halfCylinderMesh, shader, view, projection, crankAngle, metalTexture, darkMetalTexture, rubberTexture);
+		cylinder.draw(boxMesh, cylinderMesh, halfCylinderMesh, halfDiskMesh, shader, view, projection, crankAngle, metalTexture, darkMetalTexture, rubberTexture);
 	}
 
 	drawCrankshaftAssembly(shader, view, projection);
@@ -84,6 +84,7 @@ void EngineSimulator::destroy() {
 	boxMesh.destroy();
 	cylinderMesh.destroy();
 	halfCylinderMesh.destroy();
+	halfDiskMesh.destroy();
 	destroyTextures();
 	meshesReady = false;
 }
@@ -96,6 +97,7 @@ void EngineSimulator::initMeshes() {
 	boxMesh = EngineMesh::createBox();
 	cylinderMesh = EngineMesh::createCylinder(64);
 	halfCylinderMesh = EngineMesh::createHalfCylinder(48);
+	halfDiskMesh = EngineMesh::createHalfDisk(48);
 	initTextures();
 	meshesReady = true;
 }
@@ -184,16 +186,32 @@ void EngineSimulator::drawEngineBlockCutaway(ShaderProgram* shader, const glm::m
 	const glm::vec4 edgeColor(0.12f, 0.44f, 0.64f, 1.0f);
 	const glm::mat4 base = glm::mat4(1.0f);
 
-	glm::mat4 lowerCrankcase = glm::translate(base, glm::vec3(0.0f, -1.30f, 0.16f));
-	lowerCrankcase = glm::scale(lowerCrankcase, glm::vec3(5.9f, 0.42f, 1.35f));
-	drawMesh(boxMesh, shader, view, projection, lowerCrankcase, blockColor);
+	glm::mat4 rearCrankcaseWall = glm::translate(base, glm::vec3(0.0f, -1.48f, 0.66f));
+	rearCrankcaseWall = glm::scale(rearCrankcaseWall, glm::vec3(5.9f, 0.58f, 0.24f));
+	drawMesh(boxMesh, shader, view, projection, rearCrankcaseWall, blockColor);
+
+	glm::mat4 frontCrankcaseRail = glm::translate(base, glm::vec3(0.0f, -1.48f, -0.62f));
+	frontCrankcaseRail = glm::scale(frontCrankcaseRail, glm::vec3(5.9f, 0.58f, 0.14f));
+	drawMesh(boxMesh, shader, view, projection, frontCrankcaseRail, edgeColor);
+
+	glm::mat4 oilPan = glm::translate(base, glm::vec3(0.0f, -1.90f, 0.22f));
+	oilPan = glm::scale(oilPan, glm::vec3(5.55f, 0.30f, 1.05f));
+	drawMesh(boxMesh, shader, view, projection, oilPan, glm::vec4(0.36f, 0.38f, 0.35f, 1.0f));
+
+	glm::mat4 rearOilShelf = glm::translate(base, glm::vec3(0.0f, -1.16f, 0.66f));
+	rearOilShelf = glm::scale(rearOilShelf, glm::vec3(5.65f, 0.10f, 0.22f));
+	drawMesh(boxMesh, shader, view, projection, rearOilShelf, glm::vec4(0.50f, 0.52f, 0.48f, 1.0f));
+
+	glm::mat4 frontOilShelf = glm::translate(base, glm::vec3(0.0f, -1.16f, -0.62f));
+	frontOilShelf = glm::scale(frontOilShelf, glm::vec3(5.65f, 0.10f, 0.12f));
+	drawMesh(boxMesh, shader, view, projection, frontOilShelf, edgeColor);
 
 	glm::mat4 rearWall = glm::translate(base, glm::vec3(0.0f, -0.18f, 0.78f));
 	rearWall = glm::scale(rearWall, glm::vec3(5.9f, 2.35f, 0.18f));
 	drawMesh(boxMesh, shader, view, projection, rearWall, glm::vec4(0.48f, 0.50f, 0.47f, 1.0f));
 
-	glm::mat4 frontLip = glm::translate(base, glm::vec3(0.0f, -1.05f, -0.58f));
-	frontLip = glm::scale(frontLip, glm::vec3(5.9f, 0.28f, 0.16f));
+	glm::mat4 frontLip = glm::translate(base, glm::vec3(0.0f, -1.32f, -0.58f));
+	frontLip = glm::scale(frontLip, glm::vec3(5.9f, 0.58f, 0.16f));
 	drawMesh(boxMesh, shader, view, projection, frontLip, edgeColor);
 
 	glm::mat4 leftWall = glm::translate(base, glm::vec3(-3.05f, -0.10f, 0.12f));
@@ -204,21 +222,6 @@ void EngineSimulator::drawEngineBlockCutaway(ShaderProgram* shader, const glm::m
 	rightWall = glm::scale(rightWall, glm::vec3(0.22f, 2.25f, 1.35f));
 	drawMesh(boxMesh, shader, view, projection, rightWall, blockColor);
 
-	glm::mat4 rearHeadRail = glm::translate(base, glm::vec3(0.0f, 1.47f, 0.58f));
-	rearHeadRail = glm::scale(rearHeadRail, glm::vec3(5.9f, 0.20f, 0.22f));
-	drawMesh(boxMesh, shader, view, projection, rearHeadRail, glm::vec4(0.56f, 0.58f, 0.55f, 1.0f));
-
-	glm::mat4 frontHeadRail = glm::translate(base, glm::vec3(0.0f, 1.47f, -0.58f));
-	frontHeadRail = glm::scale(frontHeadRail, glm::vec3(5.9f, 0.20f, 0.16f));
-	drawMesh(boxMesh, shader, view, projection, frontHeadRail, edgeColor);
-
-	for (int i = 0; i < 5; ++i) {
-		const float x = -2.8f + i * 1.4f;
-		glm::mat4 headBridge = glm::translate(base, glm::vec3(x, 1.47f, 0.0f));
-		headBridge = glm::scale(headBridge, glm::vec3(0.18f, 0.20f, 0.95f));
-		drawMesh(boxMesh, shader, view, projection, headBridge, glm::vec4(0.56f, 0.58f, 0.55f, 1.0f));
-	}
-
 	for (int i = 0; i < 3; ++i) {
 		const float x = -1.4f + i * 1.4f;
 		glm::mat4 web = glm::translate(base, glm::vec3(x, -0.30f, 0.48f));
@@ -228,29 +231,15 @@ void EngineSimulator::drawEngineBlockCutaway(ShaderProgram* shader, const glm::m
 
 	for (int i = 0; i < 4; ++i) {
 		const float x = -2.1f + i * 1.4f;
-		glm::mat4 blueEdge = glm::translate(base, glm::vec3(x - 0.36f, 0.55f, -0.62f));
-		blueEdge = glm::scale(blueEdge, glm::vec3(0.05f, 1.55f, 0.05f));
-		drawMesh(boxMesh, shader, view, projection, blueEdge, edgeColor);
-
 		glm::mat4 deckRing = glm::translate(base, glm::vec3(x, 1.18f, 0.0f));
 		deckRing = glm::scale(deckRing, glm::vec3(0.80f, 0.10f, 0.80f));
 		drawMesh(cylinderMesh, shader, view, projection, deckRing, glm::vec4(0.60f, 0.62f, 0.58f, 1.0f));
-
-		glm::mat4 bearingCap = glm::translate(base, glm::vec3(x, -1.35f, -0.18f));
-		bearingCap = glm::scale(bearingCap, glm::vec3(0.64f, 0.22f, 0.52f));
-		drawMesh(boxMesh, shader, view, projection, bearingCap, glm::vec4(0.34f, 0.36f, 0.34f, 1.0f));
-
-		for (float boltX : {-0.26f, 0.26f}) {
-			glm::mat4 capBolt = glm::translate(base, glm::vec3(x + boltX, -1.18f, -0.42f));
-			capBolt = glm::scale(capBolt, glm::vec3(0.06f, 0.08f, 0.06f));
-			drawMesh(cylinderMesh, shader, view, projection, capBolt, glm::vec4(0.10f, 0.11f, 0.11f, 1.0f));
-		}
 	}
 
 	for (int i = 0; i < 9; ++i) {
 		const float x = -2.8f + i * 0.7f;
-		glm::mat4 railBolt = glm::translate(base, glm::vec3(x, -0.87f, -0.70f));
-		railBolt = glm::scale(railBolt, glm::vec3(0.055f, 0.075f, 0.055f));
+		glm::mat4 railBolt = glm::translate(base, glm::vec3(x, -1.05f, -0.70f));
+		railBolt = glm::scale(railBolt, glm::vec3(0.055f, 0.10f, 0.055f));
 		drawMesh(cylinderMesh, shader, view, projection, railBolt, glm::vec4(0.12f, 0.13f, 0.13f, 1.0f));
 	}
 }
@@ -258,46 +247,106 @@ void EngineSimulator::drawEngineBlockCutaway(ShaderProgram* shader, const glm::m
 void EngineSimulator::drawCrankshaftAssembly(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
 	const glm::mat4 base = glm::mat4(1.0f);
 	const glm::vec4 darkSteel(0.13f, 0.15f, 0.16f, 1.0f);
-	const glm::vec4 counterweightColor(0.08f, 0.09f, 0.10f, 1.0f);
-	const float shaftVisibleLength = 5.10f;
+	const glm::vec4 webColor(0.20f, 0.22f, 0.22f, 1.0f);
+	const glm::vec4 counterweightColor(0.12f, 0.13f, 0.13f, 1.0f);
+	const glm::vec4 journalColor(0.30f, 0.32f, 0.32f, 1.0f);
+	const float mainY = -1.05f;
+	const float throwRadius = 0.32f;
+	const auto alignCylinderBetween = [](const glm::vec3& start, const glm::vec3& end, float radius) {
+		const glm::vec3 middle = (start + end) * 0.5f;
+		const glm::vec3 direction = end - start;
+		const float length = glm::length(direction);
 
-	glm::mat4 mainShaft = glm::translate(base, glm::vec3(0.0f, -1.05f, 0.0f));
-	mainShaft = glm::rotate(mainShaft, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
-	mainShaft = glm::rotate(mainShaft, crankAngle * PI / 180.0f, glm::vec3(0.0f, 1.0f, 0.0f));
-	mainShaft = glm::scale(mainShaft, glm::vec3(0.18f, shaftVisibleLength, 0.18f));
-	drawMesh(cylinderMesh, shader, view, projection, mainShaft, darkSteel);
+		glm::mat4 model = glm::translate(glm::mat4(1.0f), middle);
+		if (length > 0.0001f) {
+			const glm::vec3 up(0.0f, 1.0f, 0.0f);
+			const glm::vec3 target = glm::normalize(direction);
+			const float dotValue = std::clamp(glm::dot(up, target), -1.0f, 1.0f);
+			const float angle = std::acos(dotValue);
+			glm::vec3 axis = glm::cross(up, target);
+			if (glm::length(axis) > 0.0001f) {
+				model = glm::rotate(model, angle, glm::normalize(axis));
+			}
+		}
+
+		return glm::scale(model, glm::vec3(radius, length, radius));
+	};
+	const float journalSegments[5][2] = {
+		{-2.95f, -2.44f},
+		{-1.76f, -1.04f},
+		{-0.36f, 0.36f},
+		{1.04f, 1.76f},
+		{2.44f, 2.95f}
+	};
+
+	for (const auto& segment : journalSegments) {
+		const float middleX = (segment[0] + segment[1]) * 0.5f;
+		const float length = segment[1] - segment[0];
+		glm::mat4 mainJournal = glm::translate(base, glm::vec3(middleX, mainY, 0.0f));
+		mainJournal = glm::rotate(mainJournal, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+		mainJournal = glm::scale(mainJournal, glm::vec3(0.18f, length, 0.18f));
+		drawMesh(cylinderMesh, shader, view, projection, mainJournal, darkSteel);
+
+		glm::mat4 journalCollar = glm::translate(base, glm::vec3(middleX, mainY, 0.0f));
+		journalCollar = glm::rotate(journalCollar, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+		journalCollar = glm::scale(journalCollar, glm::vec3(0.24f, 0.08f, 0.24f));
+		drawMesh(cylinderMesh, shader, view, projection, journalCollar, journalColor);
+	}
 
 	for (int i = 0; i < 4; ++i) {
 		const float x = -2.1f + i * 1.4f;
 		const float phase = (crankAngle + i * 180.0f) * PI / 180.0f;
-		const glm::vec3 pin(x, -1.05f + 0.32f * std::sin(phase), 0.32f * std::cos(phase));
+		const glm::vec3 pin(x, mainY + throwRadius * std::sin(phase), throwRadius * std::cos(phase));
+		const glm::vec3 counterCenter(x, mainY - throwRadius * 0.74f * std::sin(phase), -throwRadius * 0.74f * std::cos(phase));
 
-		glm::mat4 crankThrow = glm::translate(base, glm::vec3(x, -1.05f, 0.0f));
-		crankThrow = glm::rotate(crankThrow, phase, glm::vec3(1.0f, 0.0f, 0.0f));
-		crankThrow = glm::scale(crankThrow, glm::vec3(0.12f, 0.62f, 0.12f));
-		drawMesh(boxMesh, shader, view, projection, crankThrow, counterweightColor);
+		for (float cheekX : {-0.26f, 0.26f}) {
+			const glm::vec3 mainPoint(x + cheekX, mainY, 0.0f);
+			const glm::vec3 pinPoint(x + cheekX, pin.y, pin.z);
+			const glm::vec3 counterPoint(x + cheekX, counterCenter.y, counterCenter.z);
+
+			glm::mat4 crankWeb = alignCylinderBetween(mainPoint, pinPoint, 0.075f);
+			drawMesh(cylinderMesh, shader, view, projection, crankWeb, webColor);
+
+			glm::mat4 counterArm = alignCylinderBetween(mainPoint, counterPoint, 0.065f);
+			drawMesh(cylinderMesh, shader, view, projection, counterArm, counterweightColor);
+
+			glm::mat4 mainCheek = glm::translate(base, mainPoint);
+			mainCheek = glm::rotate(mainCheek, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+			mainCheek = glm::scale(mainCheek, glm::vec3(0.22f, 0.07f, 0.22f));
+			drawMesh(cylinderMesh, shader, view, projection, mainCheek, journalColor);
+
+			glm::mat4 pinCheek = glm::translate(base, pinPoint);
+			pinCheek = glm::rotate(pinCheek, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+			pinCheek = glm::scale(pinCheek, glm::vec3(0.20f, 0.075f, 0.20f));
+			drawMesh(cylinderMesh, shader, view, projection, pinCheek, webColor);
+
+			glm::mat4 counterDisc = glm::translate(base, glm::vec3(x + cheekX, counterCenter.y, counterCenter.z));
+			counterDisc = glm::rotate(counterDisc, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+			counterDisc = glm::scale(counterDisc, glm::vec3(0.32f, 0.09f, 0.24f));
+			drawMesh(cylinderMesh, shader, view, projection, counterDisc, counterweightColor);
+		}
 
 		glm::mat4 pinMesh = glm::translate(base, pin);
 		pinMesh = glm::rotate(pinMesh, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
-		pinMesh = glm::scale(pinMesh, glm::vec3(0.14f, 0.46f, 0.14f));
+		pinMesh = glm::scale(pinMesh, glm::vec3(0.15f, 0.52f, 0.15f));
 		drawMesh(cylinderMesh, shader, view, projection, pinMesh, glm::vec4(0.20f, 0.22f, 0.23f, 1.0f));
 
-		glm::mat4 counterweight = glm::translate(base, glm::vec3(x, -1.05f - 0.28f * std::sin(phase), -0.28f * std::cos(phase)));
-		counterweight = glm::rotate(counterweight, phase, glm::vec3(1.0f, 0.0f, 0.0f));
-		counterweight = glm::scale(counterweight, glm::vec3(0.46f, 0.16f, 0.34f));
-		drawMesh(boxMesh, shader, view, projection, counterweight, counterweightColor);
-
-		glm::mat4 journalCollar = glm::translate(base, glm::vec3(x, -1.05f, 0.0f));
-		journalCollar = glm::rotate(journalCollar, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
-		journalCollar = glm::scale(journalCollar, glm::vec3(0.26f, 0.12f, 0.26f));
-		drawMesh(cylinderMesh, shader, view, projection, journalCollar, glm::vec4(0.30f, 0.32f, 0.32f, 1.0f));
+		glm::mat4 pinCollar = glm::translate(base, pin);
+		pinCollar = glm::rotate(pinCollar, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+		pinCollar = glm::scale(pinCollar, glm::vec3(0.23f, 0.18f, 0.23f));
+		drawMesh(cylinderMesh, shader, view, projection, pinCollar, journalColor);
 	}
 
-	glm::mat4 flywheel = glm::translate(base, glm::vec3(3.20f, -1.05f, 0.0f));
-	flywheel = glm::rotate(flywheel, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
-	flywheel = glm::rotate(flywheel, crankAngle * PI / 180.0f, glm::vec3(0.0f, 1.0f, 0.0f));
-	flywheel = glm::scale(flywheel, glm::vec3(0.72f, 0.18f, 0.72f));
-	drawMesh(cylinderMesh, shader, view, projection, flywheel, glm::vec4(0.16f, 0.18f, 0.19f, 1.0f));
+	for (float endX : {-2.88f, 2.88f}) {
+		glm::mat4 endBearing = glm::translate(base, glm::vec3(endX, mainY, 0.0f));
+		endBearing = glm::rotate(endBearing, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+		endBearing = glm::scale(endBearing, glm::vec3(0.27f, 0.16f, 0.27f));
+		drawMesh(cylinderMesh, shader, view, projection, endBearing, glm::vec4(0.34f, 0.36f, 0.35f, 1.0f));
+
+		glm::mat4 bearingHousing = glm::translate(base, glm::vec3(endX, mainY - 0.18f, 0.0f));
+		bearingHousing = glm::scale(bearingHousing, glm::vec3(0.46f, 0.18f, 0.54f));
+		drawMesh(boxMesh, shader, view, projection, bearingHousing, glm::vec4(0.40f, 0.42f, 0.39f, 1.0f));
+	}
 }
 
 void EngineSimulator::drawValveTrain(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
@@ -332,10 +381,19 @@ void EngineSimulator::drawValveTrain(ShaderProgram* shader, const glm::mat4& vie
 
 		for (int i = 0; i < 4; ++i) {
 			const float x = -2.1f + i * 1.4f;
-			glm::mat4 lobe = glm::translate(base, glm::vec3(x, 2.25f, z));
-			lobe = glm::rotate(lobe, camAngle + i * PI * 0.5f + row * PI * 0.25f, glm::vec3(1.0f, 0.0f, 0.0f));
-			lobe = glm::scale(lobe, glm::vec3(0.26f, 0.12f, 0.40f));
-			drawMesh(boxMesh, shader, view, projection, lobe, lobeColor);
+			const float lobeAngle = camAngle + i * PI * 0.5f + row * PI * 0.25f;
+			const float noseY = 0.10f * std::cos(lobeAngle);
+			const float noseZ = 0.10f * std::sin(lobeAngle);
+
+			glm::mat4 lobeBase = glm::translate(base, glm::vec3(x, 2.25f, z));
+			lobeBase = glm::rotate(lobeBase, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+			lobeBase = glm::scale(lobeBase, glm::vec3(0.18f, 0.11f, 0.18f));
+			drawMesh(cylinderMesh, shader, view, projection, lobeBase, lobeColor);
+
+			glm::mat4 lobeNose = glm::translate(base, glm::vec3(x, 2.25f + noseY, z + noseZ));
+			lobeNose = glm::rotate(lobeNose, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+			lobeNose = glm::scale(lobeNose, glm::vec3(0.13f, 0.13f, 0.13f));
+			drawMesh(cylinderMesh, shader, view, projection, lobeNose, lobeColor);
 
 			glm::mat4 camBearing = glm::translate(base, glm::vec3(x + 0.40f, 2.25f, z));
 			camBearing = glm::rotate(camBearing, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));

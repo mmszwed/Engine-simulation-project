@@ -186,6 +186,30 @@ EngineMesh EngineMesh::createHalfCylinder(int segments) {
 		addVertex(data, x1, halfHeight, z1, std::cos(a1), 0.0f, std::sin(a1), t1, 1.0f);
 		addVertex(data, x0, halfHeight, z0, std::cos(a0), 0.0f, std::sin(a0), t0, 1.0f);
 
+	}
+
+	mesh.upload(data);
+	return mesh;
+}
+
+EngineMesh EngineMesh::createHalfDisk(int segments) {
+	EngineMesh mesh;
+	std::vector<float> data;
+	const float radius = 0.5f;
+	const float halfHeight = 0.5f;
+	const float startAngle = 0.0f;
+	const float endAngle = PI;
+
+	for (int i = 0; i < segments; ++i) {
+		const float t0 = static_cast<float>(i) / static_cast<float>(segments);
+		const float t1 = static_cast<float>(i + 1) / static_cast<float>(segments);
+		const float a0 = startAngle + (endAngle - startAngle) * t0;
+		const float a1 = startAngle + (endAngle - startAngle) * t1;
+		const float x0 = std::cos(a0) * radius;
+		const float z0 = std::sin(a0) * radius;
+		const float x1 = std::cos(a1) * radius;
+		const float z1 = std::sin(a1) * radius;
+
 		addVertex(data, 0.0f, halfHeight, 0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 0.5f);
 		addVertex(data, x1, halfHeight, z1, 0.0f, 1.0f, 0.0f, 0.5f + x1, 0.5f + z1);
 		addVertex(data, x0, halfHeight, z0, 0.0f, 1.0f, 0.0f, 0.5f + x0, 0.5f + z0);
@@ -193,7 +217,21 @@ EngineMesh EngineMesh::createHalfCylinder(int segments) {
 		addVertex(data, 0.0f, -halfHeight, 0.0f, 0.0f, -1.0f, 0.0f, 0.5f, 0.5f);
 		addVertex(data, x0, -halfHeight, z0, 0.0f, -1.0f, 0.0f, 0.5f + x0, 0.5f + z0);
 		addVertex(data, x1, -halfHeight, z1, 0.0f, -1.0f, 0.0f, 0.5f + x1, 0.5f + z1);
+
+		addVertex(data, x0, -halfHeight, z0, std::cos(a0), 0.0f, std::sin(a0), t0, 0.0f);
+		addVertex(data, x1, -halfHeight, z1, std::cos(a1), 0.0f, std::sin(a1), t1, 0.0f);
+		addVertex(data, x1, halfHeight, z1, std::cos(a1), 0.0f, std::sin(a1), t1, 1.0f);
+		addVertex(data, x0, -halfHeight, z0, std::cos(a0), 0.0f, std::sin(a0), t0, 0.0f);
+		addVertex(data, x1, halfHeight, z1, std::cos(a1), 0.0f, std::sin(a1), t1, 1.0f);
+		addVertex(data, x0, halfHeight, z0, std::cos(a0), 0.0f, std::sin(a0), t0, 1.0f);
 	}
+
+	addVertex(data, -radius, -halfHeight, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f);
+	addVertex(data, -radius, halfHeight, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f);
+	addVertex(data, radius, halfHeight, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f);
+	addVertex(data, -radius, -halfHeight, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f);
+	addVertex(data, radius, halfHeight, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f);
+	addVertex(data, radius, -halfHeight, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f);
 
 	mesh.upload(data);
 	return mesh;

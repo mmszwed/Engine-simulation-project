@@ -21,6 +21,8 @@ void CameraController::update(GLFWwindow* window, float deltaTime) {
 
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) yaw -= rotateSpeed * deltaTime;
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) yaw += rotateSpeed * deltaTime;
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) pitch += rotateSpeed * deltaTime;
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) pitch -= rotateSpeed * deltaTime;
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) distance += zoomSpeed * deltaTime;
 	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) distance -= zoomSpeed * deltaTime;
 

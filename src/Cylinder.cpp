@@ -295,6 +295,14 @@ void Cylinder::drawValveSeats(const EngineMesh& cylinderMesh, const EngineMesh& 
 			glm::mat4 valveOpening = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition + localX, 1.300f, localZ));
 			valveOpening = glm::scale(valveOpening, glm::vec3(0.130f, 0.010f, 0.130f));
 			drawMesh(cylinderMesh, shader, view, projection, valveOpening, glm::vec4(0.045f, 0.048f, 0.047f, 1.0f));
+
+			glm::mat4 undersideSeat = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition + localX, 1.236f, localZ));
+			undersideSeat = glm::scale(undersideSeat, glm::vec3(0.160f, 0.007f, 0.160f));
+			drawMesh(cylinderMesh, shader, view, projection, undersideSeat, glm::vec4(0.46f, 0.48f, 0.45f, 1.0f));
+
+			glm::mat4 undersideOpening = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition + localX, 1.230f, localZ));
+			undersideOpening = glm::scale(undersideOpening, glm::vec3(0.118f, 0.009f, 0.118f));
+			drawMesh(cylinderMesh, shader, view, projection, undersideOpening, glm::vec4(0.035f, 0.038f, 0.037f, 1.0f));
 		}
 	}
 

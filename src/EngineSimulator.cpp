@@ -86,6 +86,8 @@ void EngineSimulator::destroy() {
 	boxMesh.destroy();
 	cylinderMesh.destroy();
 	camLobeMesh.destroy();
+	crankSprocketMesh.destroy();
+	camSprocketMesh.destroy();
 	halfCylinderMesh.destroy();
 	intakeManifoldMesh.destroy();
 	exhaustManifoldMesh.destroy();
@@ -103,6 +105,8 @@ void EngineSimulator::initMeshes() {
 	boxMesh = EngineMesh::createBox();
 	cylinderMesh = EngineMesh::createCylinder(64);
 	camLobeMesh = EngineMesh::createCamLobe(96);
+	crankSprocketMesh = EngineMesh::createSprocket(12);
+	camSprocketMesh = EngineMesh::createSprocket(24);
 	halfCylinderMesh = EngineMesh::createHalfCylinder(48);
 	intakeManifoldMesh = EngineMesh::createPortedHalfCylinder(48, 96, false);
 	exhaustManifoldMesh = EngineMesh::createPortedHalfCylinder(48, 96, true);
@@ -467,82 +471,171 @@ void EngineSimulator::drawValveTrain(ShaderProgram* shader, const glm::mat4& vie
 		}
 	}
 
-	for (int gear = 0; gear < 3; ++gear) {
-		const float y = gear == 0 ? -1.05f : 2.25f;
-		const float z = gear == 1 ? -0.46f : (gear == 2 ? 0.46f : 0.0f);
-		const float wheelAngle = (gear == 0 ? crankAngle : crankAngle * 0.5f) * PI / 180.0f;
-		glm::mat4 wheel = glm::translate(base, glm::vec3(sprocketX, y, z));
-		wheel = glm::rotate(wheel, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
-		wheel = glm::rotate(wheel, wheelAngle, glm::vec3(0.0f, 1.0f, 0.0f));
-		wheel = glm::scale(wheel, glm::vec3(0.42f, 0.12f, 0.42f));
-		drawMesh(cylinderMesh, shader, view, projection, wheel, glm::vec4(0.18f, 0.19f, 0.18f, 1.0f));
+	const auto drawSprocket = [&](const EngineMesh& sprocketMesh, const glm::vec3& center, float radius, float angle) {
+		glm::mat4 sprocket = glm::translate(base, center);
+		sprocket = glm::rotate(sprocket, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+		sprocket = glm::rotate(sprocket, angle, glm::vec3(0.0f, 1.0f, 0.0f));
+		sprocket = glm::scale(sprocket, glm::vec3(radius, 0.15f, radius));
+		drawMesh(sprocketMesh, shader, view, projection, sprocket, glm::vec4(0.28f, 0.30f, 0.28f, 1.0f));
 
-		if (gear == 0) {
-			glm::mat4 lowerConnector = glm::translate(base, glm::vec3((sprocketX + camEndX) * 0.5f, y, z));
-			lowerConnector = glm::rotate(lowerConnector, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
-			lowerConnector = glm::rotate(lowerConnector, crankAngle * PI / 180.0f, glm::vec3(0.0f, 1.0f, 0.0f));
-			lowerConnector = glm::scale(lowerConnector, glm::vec3(0.14f, std::abs(connectorLength), 0.14f));
-			drawMesh(cylinderMesh, shader, view, projection, lowerConnector, camColor);
-		}
+		glm::mat4 hub = glm::translate(base, center);
+		hub = glm::rotate(hub, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+		hub = glm::rotate(hub, angle, glm::vec3(0.0f, 1.0f, 0.0f));
+		hub = glm::scale(hub, glm::vec3(radius * 0.30f, 0.20f, radius * 0.30f));
+		drawMesh(cylinderMesh, shader, view, projection, hub, glm::vec4(0.42f, 0.44f, 0.41f, 1.0f));
+	};
 
-		for (int tooth = 0; tooth < 12; ++tooth) {
-			const float a = tooth * 2.0f * PI / 12.0f + wheelAngle;
-			glm::mat4 gearTooth = glm::translate(base, glm::vec3(sprocketX, y + 0.45f * std::sin(a), z + 0.45f * std::cos(a)));
-			gearTooth = glm::rotate(gearTooth, a, glm::vec3(1.0f, 0.0f, 0.0f));
-			gearTooth = glm::scale(gearTooth, glm::vec3(0.08f, 0.08f, 0.05f));
-			drawMesh(boxMesh, shader, view, projection, gearTooth, glm::vec4(0.08f, 0.08f, 0.08f, 1.0f));
-		}
-	}
+	const float crankSprocketAngle = crankAngle * PI / 180.0f;
+	const float camSprocketAngle = crankAngle * 0.5f * PI / 180.0f;
+	const float crankToothPhase = 2.98f - PI * 0.5f;
+	const float intakeToothPhase = 3.62f - PI * 0.5f;
+	const float exhaustToothPhase = 2.36f - PI * 0.5f;
+	drawSprocket(
+		crankSprocketMesh,
+		glm::vec3(sprocketX, -1.05f, 0.0f),
+		0.20f,
+		crankSprocketAngle + crankToothPhase
+	);
+	drawSprocket(
+		camSprocketMesh,
+		glm::vec3(sprocketX, 2.25f, -0.46f),
+		0.40f,
+		camSprocketAngle + intakeToothPhase
+	);
+	drawSprocket(
+		camSprocketMesh,
+		glm::vec3(sprocketX, 2.25f, 0.46f),
+		0.40f,
+		camSprocketAngle + exhaustToothPhase
+	);
+
+	glm::mat4 lowerConnector = glm::translate(base, glm::vec3((sprocketX + camEndX) * 0.5f, -1.05f, 0.0f));
+	lowerConnector = glm::rotate(lowerConnector, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+	lowerConnector = glm::rotate(lowerConnector, crankSprocketAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+	lowerConnector = glm::scale(lowerConnector, glm::vec3(0.14f, std::abs(connectorLength), 0.14f));
+	drawMesh(cylinderMesh, shader, view, projection, lowerConnector, camColor);
 
 	drawTimingChain(shader, view, projection);
 }
 
 void EngineSimulator::drawTimingChain(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
 	const glm::mat4 base = glm::mat4(1.0f);
-	const float chainX = -3.26f;
-	const glm::vec3 bottom(chainX, -1.05f, 0.0f);
-	const glm::vec3 topIntake(chainX, 2.25f, -0.46f);
-	const glm::vec3 topExhaust(chainX, 2.25f, 0.46f);
-	const float leftLength = glm::length(topIntake - bottom);
-	const float topLength = glm::length(topExhaust - topIntake);
-	const float rightLength = glm::length(bottom - topExhaust);
-	const float totalLength = leftLength + topLength + rightLength;
-	const int linkCount = 44;
-	const float linkSpacing = totalLength / static_cast<float>(linkCount);
-	const float travel = std::fmod(crankAngle * 0.018f, totalLength);
+	const float chainX = -3.22f;
+	const glm::vec3 crankCenter(chainX, -1.05f, 0.0f);
+	const glm::vec3 intakeCenter(chainX, 2.25f, -0.46f);
+	const glm::vec3 exhaustCenter(chainX, 2.25f, 0.46f);
+	// Rollers run on the pitch circle, inside the tooth tips.
+	const float crankRadius = 0.18f;
+	const float camRadius = 0.36f;
+	std::vector<glm::vec3> path;
 
-	for (int i = 0; i < linkCount; ++i) {
-		float distance = std::fmod(i * linkSpacing + travel, totalLength);
-		glm::vec3 start;
-		glm::vec3 end;
-		float local = distance;
-
-		if (local < leftLength) {
-			const float t = local / leftLength;
-			start = bottom;
-			end = topIntake;
-			local = t;
-		} else if (local < leftLength + topLength) {
-			const float t = (local - leftLength) / topLength;
-			start = topIntake;
-			end = topExhaust;
-			local = t;
-		} else {
-			const float t = (local - leftLength - topLength) / rightLength;
-			start = topExhaust;
-			end = bottom;
-			local = t;
+	const auto circlePoint = [](const glm::vec3& center, float radius, float angle) {
+		return center + glm::vec3(0.0f, std::sin(angle) * radius, std::cos(angle) * radius);
+	};
+	const auto addLine = [&](const glm::vec3& start, const glm::vec3& end, int segments) {
+		for (int segment = 0; segment < segments; ++segment) {
+			const float t = static_cast<float>(segment) / static_cast<float>(segments);
+			path.push_back(glm::mix(start, end, t));
 		}
+	};
+	const auto addArc = [&](const glm::vec3& center, float radius, float startAngle, float endAngle, int segments) {
+		for (int segment = 0; segment < segments; ++segment) {
+			const float t = static_cast<float>(segment) / static_cast<float>(segments);
+			path.push_back(circlePoint(center, radius, glm::mix(startAngle, endAngle, t)));
+		}
+	};
 
-		const glm::vec3 point = start + (end - start) * local;
+	const float crankLeftAngle = 2.98f;
+	const float intakeLowerAngle = 3.62f;
+	const float intakeTopAngle = 0.78f;
+	const float exhaustTopAngle = 2.36f;
+	const float exhaustLowerAngle = -0.48f;
+	const float crankRightAngle = 0.16f;
+
+	addLine(
+		circlePoint(crankCenter, crankRadius, crankLeftAngle),
+		circlePoint(intakeCenter, camRadius, intakeLowerAngle),
+		24
+	);
+	addArc(intakeCenter, camRadius, intakeLowerAngle, intakeTopAngle, 18);
+	addLine(
+		circlePoint(intakeCenter, camRadius, intakeTopAngle),
+		circlePoint(exhaustCenter, camRadius, exhaustTopAngle),
+		8
+	);
+	addArc(exhaustCenter, camRadius, exhaustTopAngle, exhaustLowerAngle, 18);
+	addLine(
+		circlePoint(exhaustCenter, camRadius, exhaustLowerAngle),
+		circlePoint(crankCenter, crankRadius, crankRightAngle),
+		24
+	);
+	addArc(crankCenter, crankRadius, crankRightAngle, crankLeftAngle - 2.0f * PI, 14);
+
+	if (path.size() < 2) {
+		return;
+	}
+
+	std::vector<float> cumulative(path.size() + 1, 0.0f);
+	for (std::size_t i = 0; i < path.size(); ++i) {
+		const glm::vec3& start = path[i];
+		const glm::vec3& end = path[(i + 1) % path.size()];
+		cumulative[i + 1] = cumulative[i] + glm::length(end - start);
+	}
+
+	const float totalLength = cumulative.back();
+	const float nominalPitch = 2.0f * PI * camRadius / 24.0f;
+	const int linkCount = std::max(48, static_cast<int>(std::round(totalLength / nominalPitch)));
+	const float spacing = totalLength / static_cast<float>(linkCount);
+	float travel = std::fmod(-crankAngle * PI / 180.0f * crankRadius, spacing);
+	if (travel < 0.0f) {
+		travel += spacing;
+	}
+
+	for (int linkIndex = 0; linkIndex < linkCount; ++linkIndex) {
+		const float distance = std::fmod(static_cast<float>(linkIndex) * spacing + travel, totalLength);
+		std::size_t segment = 0;
+		while (segment + 1 < cumulative.size() && cumulative[segment + 1] <= distance) {
+			++segment;
+		}
+		segment = std::min(segment, path.size() - 1);
+		const glm::vec3 start = path[segment];
+		const glm::vec3 end = path[(segment + 1) % path.size()];
+		const float segmentLength = std::max(glm::length(end - start), 0.0001f);
+		const float local = (distance - cumulative[segment]) / segmentLength;
+		const glm::vec3 point = glm::mix(start, end, local);
 		const glm::vec3 tangent = glm::normalize(end - start);
 		const float angleX = std::atan2(tangent.z, tangent.y);
+		const glm::vec4 plateColor = linkIndex % 2 == 0
+			? glm::vec4(0.08f, 0.09f, 0.085f, 1.0f)
+			: glm::vec4(0.22f, 0.23f, 0.21f, 1.0f);
+		const bool outerLink = linkIndex % 2 == 0;
+		const float plateOffset = outerLink ? 0.074f : 0.054f;
+		const float plateThickness = outerLink ? 0.026f : 0.022f;
+		const float plateWidth = outerLink ? 0.055f : 0.047f;
 
-		glm::mat4 link = glm::translate(base, point);
-		link = glm::rotate(link, angleX, glm::vec3(1.0f, 0.0f, 0.0f));
-		link = glm::scale(link, glm::vec3(0.11f, 0.16f, 0.045f));
-		const glm::vec4 chainColor = i % 2 == 0 ? glm::vec4(0.035f, 0.035f, 0.035f, 1.0f) : glm::vec4(0.12f, 0.12f, 0.11f, 1.0f);
-		drawMesh(boxMesh, shader, view, projection, link, chainColor);
+		for (float side : {-1.0f, 1.0f}) {
+			glm::mat4 plate = glm::translate(base, point + glm::vec3(side * plateOffset, 0.0f, 0.0f));
+			plate = glm::rotate(plate, angleX, glm::vec3(1.0f, 0.0f, 0.0f));
+			plate = glm::scale(plate, glm::vec3(plateThickness, spacing * 0.84f, plateWidth));
+			drawMesh(boxMesh, shader, view, projection, plate, plateColor);
+		}
+
+		glm::mat4 pin = glm::translate(base, point);
+		pin = glm::rotate(pin, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+		pin = glm::scale(pin, glm::vec3(0.021f, 0.18f, 0.021f));
+		drawMesh(cylinderMesh, shader, view, projection, pin, glm::vec4(0.46f, 0.47f, 0.43f, 1.0f));
+
+		glm::mat4 roller = glm::translate(base, point);
+		roller = glm::rotate(roller, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+		roller = glm::scale(roller, glm::vec3(0.049f, 0.105f, 0.049f));
+		drawMesh(cylinderMesh, shader, view, projection, roller, glm::vec4(0.24f, 0.25f, 0.23f, 1.0f));
+
+		for (float side : {-1.0f, 1.0f}) {
+			glm::mat4 pinHead = glm::translate(base, point + glm::vec3(side * 0.094f, 0.0f, 0.0f));
+			pinHead = glm::rotate(pinHead, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+			pinHead = glm::scale(pinHead, glm::vec3(0.032f, 0.014f, 0.032f));
+			drawMesh(cylinderMesh, shader, view, projection, pinHead, glm::vec4(0.56f, 0.57f, 0.52f, 1.0f));
+		}
 	}
 }
 

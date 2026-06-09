@@ -22,6 +22,7 @@ public:
 	static EngineMesh createBox();
 	static EngineMesh createCylinder(int segments);
 	static EngineMesh createCamLobe(int segments);
+	static EngineMesh createSprocket(int toothCount);
 	static EngineMesh createHalfCylinder(int segments);
 	static EngineMesh createPortedHalfCylinder(int arcSegments, int axialSegments, bool portsOnPositiveSide);
 	static EngineMesh createHalfDisk(int segments);

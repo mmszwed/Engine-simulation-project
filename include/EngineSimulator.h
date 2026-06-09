@@ -31,6 +31,8 @@ private:
 	EngineMesh boxMesh;
 	EngineMesh cylinderMesh;
 	EngineMesh camLobeMesh;
+	EngineMesh crankSprocketMesh;
+	EngineMesh camSprocketMesh;
 	EngineMesh halfCylinderMesh;
 	EngineMesh intakeManifoldMesh;
 	EngineMesh exhaustManifoldMesh;

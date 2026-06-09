@@ -229,6 +229,65 @@ EngineMesh EngineMesh::createCamLobe(int segments) {
 	return mesh;
 }
 
+EngineMesh EngineMesh::createSprocket(int toothCount) {
+	EngineMesh mesh;
+	std::vector<float> data;
+	const int teeth = std::max(toothCount, 8);
+	const int pointsPerTooth = 6;
+	const int profilePoints = teeth * pointsPerTooth;
+	const float halfWidth = 0.5f;
+	const float rootRadius = 0.74f;
+	const float tipRadius = 0.90f;
+
+	const auto profileRadius = [&](int point) {
+		switch (point % pointsPerTooth) {
+		case 0:
+		case 5:
+			return rootRadius;
+		case 1:
+		case 4:
+			return glm::mix(rootRadius, tipRadius, 0.62f);
+		default:
+			return tipRadius;
+		}
+	};
+
+	for (int point = 0; point < profilePoints; ++point) {
+		const int next = (point + 1) % profilePoints;
+		const float a0 = 2.0f * PI * static_cast<float>(point) / static_cast<float>(profilePoints);
+		const float a1 = 2.0f * PI * static_cast<float>(next) / static_cast<float>(profilePoints);
+		const float r0 = profileRadius(point);
+		const float r1 = profileRadius(next);
+		const float x0 = std::cos(a0) * r0;
+		const float z0 = std::sin(a0) * r0;
+		const float x1 = std::cos(a1) * r1;
+		const float z1 = std::sin(a1) * r1;
+
+		addVertex(data, 0.0f, halfWidth, 0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 0.5f);
+		addVertex(data, x1, halfWidth, z1, 0.0f, 1.0f, 0.0f, 0.5f + x1 * 0.5f, 0.5f + z1 * 0.5f);
+		addVertex(data, x0, halfWidth, z0, 0.0f, 1.0f, 0.0f, 0.5f + x0 * 0.5f, 0.5f + z0 * 0.5f);
+
+		addVertex(data, 0.0f, -halfWidth, 0.0f, 0.0f, -1.0f, 0.0f, 0.5f, 0.5f);
+		addVertex(data, x0, -halfWidth, z0, 0.0f, -1.0f, 0.0f, 0.5f + x0 * 0.5f, 0.5f + z0 * 0.5f);
+		addVertex(data, x1, -halfWidth, z1, 0.0f, -1.0f, 0.0f, 0.5f + x1 * 0.5f, 0.5f + z1 * 0.5f);
+
+		const glm::vec3 edge(x1 - x0, 0.0f, z1 - z0);
+		const glm::vec3 sideNormal = glm::normalize(glm::vec3(edge.z, 0.0f, -edge.x));
+		const float u0 = static_cast<float>(point) / static_cast<float>(profilePoints);
+		const float u1 = static_cast<float>(point + 1) / static_cast<float>(profilePoints);
+
+		addVertex(data, x0, -halfWidth, z0, sideNormal.x, 0.0f, sideNormal.z, u0, 0.0f);
+		addVertex(data, x1, -halfWidth, z1, sideNormal.x, 0.0f, sideNormal.z, u1, 0.0f);
+		addVertex(data, x1, halfWidth, z1, sideNormal.x, 0.0f, sideNormal.z, u1, 1.0f);
+		addVertex(data, x0, -halfWidth, z0, sideNormal.x, 0.0f, sideNormal.z, u0, 0.0f);
+		addVertex(data, x1, halfWidth, z1, sideNormal.x, 0.0f, sideNormal.z, u1, 1.0f);
+		addVertex(data, x0, halfWidth, z0, sideNormal.x, 0.0f, sideNormal.z, u0, 1.0f);
+	}
+
+	mesh.upload(data);
+	return mesh;
+}
+
 EngineMesh EngineMesh::createHalfCylinder(int segments) {
 	EngineMesh mesh;
 	std::vector<float> data;

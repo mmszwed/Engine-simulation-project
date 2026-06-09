@@ -12,16 +12,17 @@
 #include "constants.h"
 #include "shaderprogram.h"
 
-Cylinder::Cylinder(int index, float xPosition, float phaseOffset)
+Cylinder::Cylinder(int index, float xPosition, float crankOffset, float cycleOffset)
 	: index(index),
 	  xPosition(xPosition),
-	  phaseOffset(phaseOffset),
+	  crankOffset(crankOffset),
+	  cycleOffset(cycleOffset),
 	  currentMetalTexture(0),
 	  currentDarkMetalTexture(0),
 	  currentRubberTexture(0) {
 }
 
-void Cylinder::draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, const EngineMesh& halfCylinderMesh, const EngineMesh& halfDiskMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float crankAngle, unsigned int metalTexture, unsigned int darkMetalTexture, unsigned int rubberTexture) const {
+void Cylinder::draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, const EngineMesh& halfCylinderMesh, const EngineMesh& valvePlateMesh, const EngineMesh& valveSeatMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float crankAngle, unsigned int metalTexture, unsigned int darkMetalTexture, unsigned int rubberTexture) const {
 	currentMetalTexture = metalTexture;
 	currentDarkMetalTexture = darkMetalTexture;
 	currentRubberTexture = rubberTexture;
@@ -29,27 +30,26 @@ void Cylinder::draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, c
 	const float currentPhase = phase(crankAngle);
 	const StrokeType stroke = getStroke(crankAngle);
 
-	const float crankRad = (crankAngle + phaseOffset) * PI / 180.0f;
+	const float crankRad = (crankAngle + crankOffset) * PI / 180.0f + PI * 0.5f;
 	const glm::vec3 crankPin(xPosition, -1.05f + 0.32f * std::sin(crankRad), 0.32f * std::cos(crankRad));
 	const float pistonPinY = pistonPinHeight(crankRad);
-	const float pistonY = pistonPinY + 0.38f;
 	const glm::vec3 pistonPin(xPosition, pistonPinY, 0.0f);
 
-	glm::mat4 sleeve = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, 0.23f, 0.0f));
-	sleeve = glm::scale(sleeve, glm::vec3(0.74f, 1.96f, 0.74f));
+	glm::mat4 sleeve = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, 0.24f, 0.0f));
+	sleeve = glm::scale(sleeve, glm::vec3(0.86f, 2.00f, 0.86f));
 	drawMesh(halfCylinderMesh, shader, view, projection, sleeve, glm::vec4(0.36f, 0.39f, 0.40f, 1.0f));
 
-	glm::mat4 sleeveLiner = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, 0.23f, 0.0f));
-	sleeveLiner = glm::scale(sleeveLiner, glm::vec3(0.64f, 1.98f, 0.64f));
+	glm::mat4 sleeveLiner = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, 0.24f, 0.0f));
+	sleeveLiner = glm::scale(sleeveLiner, glm::vec3(0.76f, 2.00f, 0.76f));
 	drawMesh(halfCylinderMesh, shader, view, projection, sleeveLiner, glm::vec4(0.68f, 0.70f, 0.68f, 1.0f));
 	drawCutawayEdges(boxMesh, shader, view, projection);
 
 	glm::mat4 chamber = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, 1.10f, -0.01f));
-	chamber = glm::scale(chamber, glm::vec3(0.62f, 0.24f, 0.62f));
+	chamber = glm::scale(chamber, glm::vec3(0.74f, 0.24f, 0.74f));
 	drawMesh(halfCylinderMesh, shader, view, projection, chamber, strokeColor(stroke));
 
 	glm::mat4 piston = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, pistonPinY + 0.08f, 0.0f));
-	piston = glm::scale(piston, glm::vec3(0.58f, 0.28f, 0.58f));
+	piston = glm::scale(piston, glm::vec3(0.70f, 0.28f, 0.70f));
 	drawMesh(cylinderMesh, shader, view, projection, piston, glm::vec4(0.86f, 0.86f, 0.80f, 1.0f));
 	drawPistonDetails(cylinderMesh, shader, view, projection, pistonPinY);
 
@@ -61,15 +61,20 @@ void Cylinder::draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, c
 	bigEnd = glm::scale(bigEnd, glm::vec3(0.21f, 0.12f, 0.21f));
 	drawMesh(cylinderMesh, shader, view, projection, bigEnd, glm::vec4(0.54f, 0.55f, 0.50f, 1.0f));
 
-	drawValveSeats(cylinderMesh, halfDiskMesh, shader, view, projection);
+	drawValveSeats(valvePlateMesh, shader, view, projection);
 
-	const float intakeLift = valveOffset(currentPhase, StrokeType::Intake);
-	const float exhaustLift = valveOffset(currentPhase, StrokeType::Exhaust);
-	drawValvePair(cylinderMesh, shader, view, projection, -0.25f, intakeLift, glm::vec4(0.66f, 0.72f, 0.74f, 1.0f));
-	drawValvePair(cylinderMesh, shader, view, projection, 0.25f, exhaustLift, glm::vec4(0.72f, 0.67f, 0.60f, 1.0f));
-	drawInjector(cylinderMesh, shader, view, projection);
+	const float pistonTopY = pistonPinY + 0.2625f;
+	const float valveAxisY = glm::normalize(glm::vec3(0.0f, 0.665f, 0.22f)).y;
+	const float closedValveBottomY = 1.225f - valveAxisY * 0.0175f;
+	const float minimumClearance = 0.08f;
+	const float safeLift = std::max(0.0f, (closedValveBottomY - pistonTopY - minimumClearance) / valveAxisY);
+	const float intakeLift = std::min(valveOffset(currentPhase, StrokeType::Intake), safeLift);
+	const float exhaustLift = std::min(valveOffset(currentPhase, StrokeType::Exhaust), safeLift);
+	drawValvePair(cylinderMesh, valveSeatMesh, shader, view, projection, -0.25f, intakeLift, glm::vec4(0.66f, 0.72f, 0.74f, 1.0f));
+	drawValvePair(cylinderMesh, valveSeatMesh, shader, view, projection, 0.25f, exhaustLift, glm::vec4(0.72f, 0.67f, 0.60f, 1.0f));
+	drawInjector(boxMesh, cylinderMesh, shader, view, projection, currentPhase);
 	drawHeadFasteners(cylinderMesh, shader, view, projection);
-	drawStrokeEffects(boxMesh, cylinderMesh, shader, view, projection, stroke, currentPhase, pistonY);
+	drawStrokeEffects(boxMesh, cylinderMesh, shader, view, projection, stroke, currentPhase, pistonTopY);
 }
 
 StrokeType Cylinder::getStroke(float crankAngle) const {
@@ -81,7 +86,7 @@ StrokeType Cylinder::getStroke(float crankAngle) const {
 }
 
 float Cylinder::phase(float crankAngle) const {
-	float p = std::fmod(crankAngle + phaseOffset, 720.0f);
+	float p = std::fmod(crankAngle + cycleOffset, 720.0f);
 	if (p < 0.0f) {
 		p += 720.0f;
 	}
@@ -115,16 +120,9 @@ float Cylinder::valveOffset(float phaseDegrees, StrokeType activeStroke) const {
 		return 0.0f;
 	}
 
-	const auto smoothStep = [](float edge0, float edge1, float value) {
-		const float t = std::clamp((value - edge0) / (edge1 - edge0), 0.0f, 1.0f);
-		return t * t * (3.0f - 2.0f * t);
-	};
-
 	const float local = (phaseDegrees - start) / (end - start);
-	const float opening = smoothStep(0.05f, 0.24f, local);
-	const float closing = 1.0f - smoothStep(0.76f, 0.95f, local);
-	const float liftCurve = std::min(opening, closing);
-	const float maxLift = 0.22f;
+	const float liftCurve = std::sin(PI * local) * std::sin(PI * local);
+	const float maxLift = 0.16f;
 	return maxLift * liftCurve;
 }
 
@@ -196,65 +194,263 @@ unsigned int Cylinder::chooseTexture(const glm::vec4& color) const {
 	return currentMetalTexture;
 }
 
-void Cylinder::drawValvePair(const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float z, float lift, const glm::vec4& color) const {
+void Cylinder::drawValvePair(const EngineMesh& cylinderMesh, const EngineMesh& valveSeatMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float z, float lift, const glm::vec4& color) const {
 	const float xOffsets[2] = {-0.20f, 0.20f};
-	const float camZ = z < 0.0f ? -0.46f : 0.46f;
 	const float valveZ = z * 0.72f;
-	const float valveTopZ = z * 1.03f;
-	const float valveTravel = -lift;
+	const float valveTopZ = z < 0.0f ? -0.40f : 0.40f;
 	for (float localX : xOffsets) {
 		const float valveX = xPosition + localX;
-		const glm::vec3 valveHeadCenter(valveX, 1.312f + valveTravel, valveZ);
-		const glm::vec3 lowerStem(valveX, 1.350f + valveTravel, valveZ);
-		const glm::vec3 upperStem(valveX, 1.910f + valveTravel, valveTopZ);
-		const glm::vec3 springBase = glm::mix(lowerStem, upperStem, 0.48f);
+		const glm::vec3 closedLowerStem(valveX, 1.245f, valveZ);
+		const glm::vec3 closedUpperStem(valveX, 1.910f, valveTopZ);
+		const glm::vec3 valveAxis = glm::normalize(closedUpperStem - closedLowerStem);
+		const glm::vec3 valveTravel = -valveAxis * lift;
+		const glm::vec3 lowerStem = closedLowerStem + valveTravel;
+		const glm::vec3 upperStem = closedUpperStem + valveTravel;
+		const glm::vec3 closedValveHead(valveX, 1.225f, valveZ);
+		const glm::vec3 valveHeadCenter = closedValveHead + valveTravel;
+		const glm::vec3 springBase = glm::mix(closedLowerStem, closedUpperStem, 0.48f);
 		const glm::vec3 springTop = glm::mix(lowerStem, upperStem, 0.92f);
+
+		glm::mat4 valveSeat = alignCylinderBetween(
+			closedValveHead - valveAxis * 0.014f,
+			closedValveHead + valveAxis * 0.014f,
+			0.230f
+		);
+		drawMesh(valveSeatMesh, shader, view, projection, valveSeat, glm::vec4(0.46f, 0.48f, 0.45f, 1.0f));
+
+		const glm::vec3 guideBottom = glm::mix(closedLowerStem, closedUpperStem, 0.20f);
+		const glm::vec3 guideTop = glm::mix(closedLowerStem, closedUpperStem, 0.48f);
+		glm::mat4 valveGuide = alignCylinderBetween(guideBottom, guideTop, 0.060f);
+		drawMesh(cylinderMesh, shader, view, projection, valveGuide, glm::vec4(0.40f, 0.42f, 0.40f, 1.0f));
+
+		glm::mat4 lowerGuideCollar = alignCylinderBetween(
+			guideBottom - valveAxis * 0.018f,
+			guideBottom + valveAxis * 0.018f,
+			0.082f
+		);
+		drawMesh(cylinderMesh, shader, view, projection, lowerGuideCollar, glm::vec4(0.58f, 0.60f, 0.56f, 1.0f));
+
+		glm::mat4 upperGuideCollar = alignCylinderBetween(
+			guideTop - valveAxis * 0.018f,
+			guideTop + valveAxis * 0.018f,
+			0.082f
+		);
+		drawMesh(cylinderMesh, shader, view, projection, upperGuideCollar, glm::vec4(0.58f, 0.60f, 0.56f, 1.0f));
 
 		glm::mat4 stem = alignCylinderBetween(lowerStem, upperStem, 0.034f);
 		drawMesh(cylinderMesh, shader, view, projection, stem, color);
 
-		glm::mat4 head = glm::translate(glm::mat4(1.0f), valveHeadCenter);
-		head = glm::scale(head, glm::vec3(0.155f, 0.035f, 0.155f));
+		glm::mat4 head = alignCylinderBetween(
+			valveHeadCenter - valveAxis * 0.0175f,
+			valveHeadCenter + valveAxis * 0.0175f,
+			0.205f
+		);
 		drawMesh(cylinderMesh, shader, view, projection, head, color);
 
-		glm::mat4 lowerRetainer = glm::translate(glm::mat4(1.0f), springBase);
-		lowerRetainer = glm::scale(lowerRetainer, glm::vec3(0.120f, 0.026f, 0.120f));
+		glm::mat4 lowerRetainer = alignCylinderBetween(
+			springBase - valveAxis * 0.013f,
+			springBase + valveAxis * 0.013f,
+			0.120f
+		);
 		drawMesh(cylinderMesh, shader, view, projection, lowerRetainer, glm::vec4(0.72f, 0.72f, 0.66f, 1.0f));
 
-		glm::mat4 retainer = glm::translate(glm::mat4(1.0f), springTop);
-		retainer = glm::scale(retainer, glm::vec3(0.120f, 0.032f, 0.120f));
+		glm::mat4 retainer = alignCylinderBetween(
+			springTop - valveAxis * 0.016f,
+			springTop + valveAxis * 0.016f,
+			0.120f
+		);
 		drawMesh(cylinderMesh, shader, view, projection, retainer, glm::vec4(0.78f, 0.78f, 0.72f, 1.0f));
 
-		drawSpring(cylinderMesh, shader, view, projection, springBase, springTop, lift);
+		drawSpring(cylinderMesh, shader, view, projection, springBase, springTop);
 
-		glm::mat4 tappet = alignCylinderBetween(glm::vec3(valveX, 1.945f + valveTravel, valveTopZ), glm::vec3(valveX, 2.16f + valveTravel * 0.35f, camZ), 0.026f);
-		drawMesh(cylinderMesh, shader, view, projection, tappet, glm::vec4(0.64f, 0.66f, 0.60f, 1.0f));
+		const glm::vec3 followerBottom = upperStem - valveAxis * 0.015f;
+		const glm::vec3 followerTop = upperStem + valveAxis * 0.125f;
+		glm::mat4 bucketFollower = alignCylinderBetween(followerBottom, followerTop, 0.125f);
+		drawMesh(cylinderMesh, shader, view, projection, bucketFollower, glm::vec4(0.46f, 0.48f, 0.46f, 1.0f));
 
-		glm::mat4 roller = glm::translate(glm::mat4(1.0f), glm::vec3(valveX, 2.17f + valveTravel * 0.35f, camZ));
-		roller = glm::rotate(roller, PI * 0.5f, glm::vec3(1.0f, 0.0f, 0.0f));
-		roller = glm::scale(roller, glm::vec3(0.090f, 0.045f, 0.090f));
-		drawMesh(cylinderMesh, shader, view, projection, roller, glm::vec4(0.76f, 0.76f, 0.70f, 1.0f));
+		const glm::vec3 contactCenter = followerTop + valveAxis * 0.018f;
+		glm::mat4 contactPad = alignCylinderBetween(
+			contactCenter - valveAxis * 0.018f,
+			contactCenter + valveAxis * 0.018f,
+			0.155f
+		);
+		drawMesh(cylinderMesh, shader, view, projection, contactPad, glm::vec4(0.76f, 0.77f, 0.72f, 1.0f));
+
+		glm::mat4 followerCollar = alignCylinderBetween(
+			followerBottom - valveAxis * 0.014f,
+			followerBottom + valveAxis * 0.014f,
+			0.145f
+		);
+		drawMesh(cylinderMesh, shader, view, projection, followerCollar, glm::vec4(0.60f, 0.62f, 0.58f, 1.0f));
 	}
 }
 
-void Cylinder::drawInjector(const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
-	glm::mat4 injector = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, 1.95f, 0.0f));
-	injector = glm::scale(injector, glm::vec3(0.08f, 0.42f, 0.08f));
-	drawMesh(cylinderMesh, shader, view, projection, injector, glm::vec4(0.82f, 0.66f, 0.18f, 1.0f));
+void Cylinder::drawInjector(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float currentPhase) const {
+	const glm::vec3 nozzle(xPosition, 1.285f, 0.0f);
+	const glm::vec3 bodyTop(xPosition, 1.91f, -0.18f);
+	const glm::vec3 injectorAxis = glm::normalize(bodyTop - nozzle);
+	const glm::vec3 connectorDirection(-1.0f, 0.0f, 0.0f);
+	const glm::vec3 fuelDirection(0.0f, 0.0f, -1.0f);
 
-	glm::mat4 tip = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, 1.63f, 0.0f));
-	tip = glm::scale(tip, glm::vec3(0.12f, 0.08f, 0.12f));
-	drawMesh(cylinderMesh, shader, view, projection, tip, glm::vec4(0.92f, 0.82f, 0.42f, 1.0f));
+	float injectionStroke = 0.0f;
+	if (currentPhase >= 330.0f && currentPhase <= 390.0f) {
+		const float local = (currentPhase - 330.0f) / 60.0f;
+		injectionStroke = 0.15f * std::sin(PI * local) * std::sin(PI * local);
+	}
+
+	// Stepped nozzle makes the injector readable even from the cutaway underside.
+	glm::mat4 nozzleTip = alignCylinderBetween(nozzle - injectorAxis * 0.045f, nozzle + injectorAxis * 0.025f, 0.026f);
+	drawMesh(cylinderMesh, shader, view, projection, nozzleTip, glm::vec4(0.84f, 0.70f, 0.30f, 1.0f));
+
+	glm::mat4 nozzleNeedle = alignCylinderBetween(
+		nozzle + injectorAxis * 0.015f,
+		nozzle + injectorAxis * 0.085f,
+		0.043f
+	);
+	drawMesh(cylinderMesh, shader, view, projection, nozzleNeedle, glm::vec4(0.74f, 0.75f, 0.71f, 1.0f));
+
+	glm::mat4 nozzleShoulder = alignCylinderBetween(
+		nozzle + injectorAxis * 0.075f,
+		nozzle + injectorAxis * 0.135f,
+		0.074f
+	);
+	drawMesh(cylinderMesh, shader, view, projection, nozzleShoulder, glm::vec4(0.66f, 0.67f, 0.63f, 1.0f));
+
+	glm::mat4 injectorBody = alignCylinderBetween(nozzle + injectorAxis * 0.125f, bodyTop, 0.070f);
+	drawMesh(cylinderMesh, shader, view, projection, injectorBody, glm::vec4(0.44f, 0.46f, 0.45f, 1.0f));
+
+	const glm::vec3 pumpBottom = nozzle + injectorAxis * 0.34f;
+	const glm::vec3 pumpTop = nozzle + injectorAxis * 0.62f;
+	glm::mat4 pumpHousing = alignCylinderBetween(pumpBottom, pumpTop, 0.112f);
+	drawMesh(cylinderMesh, shader, view, projection, pumpHousing, glm::vec4(0.31f, 0.33f, 0.32f, 1.0f));
+
+	glm::mat4 lowerCollar = alignCylinderBetween(
+		pumpBottom - injectorAxis * 0.020f,
+		pumpBottom + injectorAxis * 0.020f,
+		0.138f
+	);
+	drawMesh(cylinderMesh, shader, view, projection, lowerCollar, glm::vec4(0.68f, 0.69f, 0.65f, 1.0f));
+
+	glm::mat4 upperCollar = alignCylinderBetween(
+		pumpTop - injectorAxis * 0.024f,
+		pumpTop + injectorAxis * 0.024f,
+		0.138f
+	);
+	drawMesh(cylinderMesh, shader, view, projection, upperCollar, glm::vec4(0.70f, 0.71f, 0.67f, 1.0f));
+
+	const glm::vec3 sealingCenter = nozzle + injectorAxis * 0.18f;
+	for (float offset : {-0.025f, 0.025f}) {
+		glm::mat4 sealingRing = alignCylinderBetween(
+			sealingCenter + injectorAxis * (offset - 0.010f),
+			sealingCenter + injectorAxis * (offset + 0.010f),
+			0.090f
+		);
+		drawMesh(cylinderMesh, shader, view, projection, sealingRing, glm::vec4(0.08f, 0.09f, 0.09f, 1.0f));
+	}
+
+	const glm::vec3 fuelPortBase = nozzle + injectorAxis * 0.45f;
+	const glm::vec3 fuelPortEnd = fuelPortBase + fuelDirection * 0.15f;
+	glm::mat4 fuelPort = alignCylinderBetween(
+		fuelPortBase,
+		fuelPortEnd,
+		0.044f
+	);
+	drawMesh(cylinderMesh, shader, view, projection, fuelPort, glm::vec4(0.68f, 0.69f, 0.65f, 1.0f));
+
+	glm::mat4 fuelPortCollar = alignCylinderBetween(
+		fuelPortEnd - fuelDirection * 0.018f,
+		fuelPortEnd + fuelDirection * 0.018f,
+		0.068f
+	);
+	drawMesh(cylinderMesh, shader, view, projection, fuelPortCollar, glm::vec4(0.80f, 0.71f, 0.42f, 1.0f));
+
+	const glm::vec3 connectorNeckBase = nozzle + injectorAxis * 0.55f;
+	const glm::vec3 connectorNeckEnd = connectorNeckBase + connectorDirection * 0.10f;
+	glm::mat4 connectorNeck = alignCylinderBetween(connectorNeckBase, connectorNeckEnd, 0.042f);
+	drawMesh(cylinderMesh, shader, view, projection, connectorNeck, glm::vec4(0.38f, 0.40f, 0.38f, 1.0f));
+
+	const glm::vec3 connectorCenter = connectorNeckEnd + connectorDirection * 0.065f;
+	glm::mat4 connector = glm::translate(glm::mat4(1.0f), connectorCenter);
+	connector = glm::scale(connector, glm::vec3(0.13f, 0.10f, 0.12f));
+	drawMesh(boxMesh, shader, view, projection, connector, glm::vec4(0.10f, 0.11f, 0.11f, 1.0f));
+
+	glm::mat4 connectorSocket = glm::translate(glm::mat4(1.0f), connectorCenter + connectorDirection * 0.085f);
+	connectorSocket = glm::scale(connectorSocket, glm::vec3(0.040f, 0.060f, 0.072f));
+	drawMesh(boxMesh, shader, view, projection, connectorSocket, glm::vec4(0.18f, 0.20f, 0.19f, 1.0f));
+
+	const glm::vec3 clampCenter = nozzle + injectorAxis * 0.30f;
+	glm::mat4 injectorClamp = alignBoxBetween(
+		clampCenter + connectorDirection * 0.13f,
+		clampCenter - connectorDirection * 0.13f,
+		0.055f
+	);
+	drawMesh(boxMesh, shader, view, projection, injectorClamp, glm::vec4(0.56f, 0.58f, 0.55f, 1.0f));
+
+	glm::mat4 clampBolt = alignCylinderBetween(
+		clampCenter - connectorDirection * 0.13f - injectorAxis * 0.035f,
+		clampCenter - connectorDirection * 0.13f + injectorAxis * 0.055f,
+		0.038f
+	);
+	drawMesh(cylinderMesh, shader, view, projection, clampBolt, glm::vec4(0.27f, 0.29f, 0.28f, 1.0f));
+
+	const glm::vec3 plungerTop = bodyTop - injectorAxis * injectionStroke;
+	const glm::vec3 plungerBottom = plungerTop - injectorAxis * 0.24f;
+	glm::mat4 plunger = alignCylinderBetween(plungerBottom, plungerTop, 0.045f);
+	drawMesh(cylinderMesh, shader, view, projection, plunger, glm::vec4(0.76f, 0.77f, 0.72f, 1.0f));
+
+	if (injectionStroke > 0.001f) {
+		const float strokeRatio = injectionStroke / 0.15f;
+		const glm::vec3 pulseCenter = pumpTop - injectorAxis * (0.05f + 0.17f * strokeRatio);
+		glm::mat4 pressurePulse = alignCylinderBetween(
+			pulseCenter - injectorAxis * 0.014f,
+			pulseCenter + injectorAxis * 0.014f,
+			0.124f
+		);
+		drawMesh(cylinderMesh, shader, view, projection, pressurePulse, glm::vec4(0.94f, 0.66f, 0.12f, 1.0f));
+
+		glm::mat4 nozzlePulse = alignCylinderBetween(
+			nozzle + injectorAxis * 0.015f,
+			nozzle + injectorAxis * 0.055f,
+			0.050f + 0.012f * strokeRatio
+		);
+		drawMesh(cylinderMesh, shader, view, projection, nozzlePulse, glm::vec4(0.96f, 0.72f, 0.18f, 1.0f));
+	}
+
+	const glm::vec3 springBottom = pumpTop + injectorAxis * 0.035f;
+	const glm::vec3 springTop = bodyTop - injectorAxis * (0.065f + injectionStroke);
+	drawSpring(cylinderMesh, shader, view, projection, springBottom, springTop, 0.072f, 0.010f, 7);
+
+	glm::mat4 springLowerSeat = alignCylinderBetween(
+		springBottom - injectorAxis * 0.012f,
+		springBottom + injectorAxis * 0.012f,
+		0.092f
+	);
+	drawMesh(cylinderMesh, shader, view, projection, springLowerSeat, glm::vec4(0.62f, 0.64f, 0.60f, 1.0f));
+
+	glm::mat4 springUpperSeat = alignCylinderBetween(
+		springTop - injectorAxis * 0.012f,
+		springTop + injectorAxis * 0.012f,
+		0.092f
+	);
+	drawMesh(cylinderMesh, shader, view, projection, springUpperSeat, glm::vec4(0.68f, 0.69f, 0.65f, 1.0f));
+
+	const glm::vec3 pressurePad = bodyTop + injectorAxis * (0.025f - injectionStroke);
+	glm::mat4 injectorPad = alignCylinderBetween(
+		pressurePad - injectorAxis * 0.022f,
+		pressurePad + injectorAxis * 0.022f,
+		0.125f
+	);
+	drawMesh(cylinderMesh, shader, view, projection, injectorPad, glm::vec4(0.74f, 0.75f, 0.70f, 1.0f));
 }
 
 void Cylinder::drawPistonDetails(const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float pistonPinY) const {
 	glm::mat4 crown = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, pistonPinY + 0.245f, 0.0f));
-	crown = glm::scale(crown, glm::vec3(0.51f, 0.035f, 0.51f));
+	crown = glm::scale(crown, glm::vec3(0.63f, 0.035f, 0.63f));
 	drawMesh(cylinderMesh, shader, view, projection, crown, glm::vec4(0.95f, 0.95f, 0.88f, 1.0f));
 
 	for (int ring = 0; ring < 3; ++ring) {
 		glm::mat4 pistonRing = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, pistonPinY + 0.185f - ring * 0.052f, 0.0f));
-		pistonRing = glm::scale(pistonRing, glm::vec3(0.595f, 0.025f, 0.595f));
+		pistonRing = glm::scale(pistonRing, glm::vec3(0.715f, 0.025f, 0.715f));
 		drawMesh(cylinderMesh, shader, view, projection, pistonRing, glm::vec4(0.08f, 0.09f, 0.09f, 1.0f));
 	}
 
@@ -266,7 +462,7 @@ void Cylinder::drawPistonDetails(const EngineMesh& cylinderMesh, ShaderProgram* 
 	}
 
 	glm::mat4 lowerSkirt = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, pistonPinY - 0.055f, 0.0f));
-	lowerSkirt = glm::scale(lowerSkirt, glm::vec3(0.50f, 0.11f, 0.50f));
+	lowerSkirt = glm::scale(lowerSkirt, glm::vec3(0.62f, 0.11f, 0.62f));
 	drawMesh(cylinderMesh, shader, view, projection, lowerSkirt, glm::vec4(0.72f, 0.72f, 0.66f, 1.0f));
 }
 
@@ -277,38 +473,10 @@ void Cylinder::drawHeadFasteners(const EngineMesh& cylinderMesh, ShaderProgram* 
 	(void)projection;
 }
 
-void Cylinder::drawValveSeats(const EngineMesh& cylinderMesh, const EngineMesh& halfDiskMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
-	(void)halfDiskMesh;
-
+void Cylinder::drawValveSeats(const EngineMesh& valvePlateMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
 	glm::mat4 headPlate = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, 1.265f, 0.0f));
 	headPlate = glm::scale(headPlate, glm::vec3(0.88f, 0.045f, 0.88f));
-	drawMesh(cylinderMesh, shader, view, projection, headPlate, glm::vec4(0.72f, 0.73f, 0.68f, 1.0f));
-
-	const float zRows[2] = {-0.18f, 0.18f};
-	const float xRows[2] = {-0.20f, 0.20f};
-	for (float localZ : zRows) {
-		for (float localX : xRows) {
-			glm::mat4 seatRing = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition + localX, 1.294f, localZ));
-			seatRing = glm::scale(seatRing, glm::vec3(0.175f, 0.008f, 0.175f));
-			drawMesh(cylinderMesh, shader, view, projection, seatRing, glm::vec4(0.50f, 0.52f, 0.48f, 1.0f));
-
-			glm::mat4 valveOpening = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition + localX, 1.300f, localZ));
-			valveOpening = glm::scale(valveOpening, glm::vec3(0.130f, 0.010f, 0.130f));
-			drawMesh(cylinderMesh, shader, view, projection, valveOpening, glm::vec4(0.045f, 0.048f, 0.047f, 1.0f));
-
-			glm::mat4 undersideSeat = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition + localX, 1.236f, localZ));
-			undersideSeat = glm::scale(undersideSeat, glm::vec3(0.160f, 0.007f, 0.160f));
-			drawMesh(cylinderMesh, shader, view, projection, undersideSeat, glm::vec4(0.46f, 0.48f, 0.45f, 1.0f));
-
-			glm::mat4 undersideOpening = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition + localX, 1.230f, localZ));
-			undersideOpening = glm::scale(undersideOpening, glm::vec3(0.118f, 0.009f, 0.118f));
-			drawMesh(cylinderMesh, shader, view, projection, undersideOpening, glm::vec4(0.035f, 0.038f, 0.037f, 1.0f));
-		}
-	}
-
-	glm::mat4 injectorHole = glm::translate(glm::mat4(1.0f), glm::vec3(xPosition, 1.300f, 0.0f));
-	injectorHole = glm::scale(injectorHole, glm::vec3(0.090f, 0.010f, 0.090f));
-	drawMesh(cylinderMesh, shader, view, projection, injectorHole, glm::vec4(0.08f, 0.075f, 0.055f, 1.0f));
+	drawMesh(valvePlateMesh, shader, view, projection, headPlate, glm::vec4(0.72f, 0.73f, 0.68f, 1.0f));
 }
 
 void Cylinder::drawCutawayEdges(const EngineMesh& boxMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
@@ -319,41 +487,129 @@ void Cylinder::drawCutawayEdges(const EngineMesh& boxMesh, ShaderProgram* shader
 }
 
 void Cylinder::drawStrokeEffects(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, StrokeType stroke, float currentPhase, float pistonY) const {
+	const float chamberTop = 1.16f;
+	const float chamberHeight = std::max(chamberTop - pistonY, 0.06f);
+	const float phaseTime = currentPhase * PI / 180.0f;
+
+	const auto drawParticle = [&](const glm::vec3& position, float size, const glm::vec4& color) {
+		glm::mat4 particle = glm::translate(glm::mat4(1.0f), position);
+		particle = glm::scale(particle, glm::vec3(size, size * 0.65f, size));
+		drawMesh(cylinderMesh, shader, view, projection, particle, color);
+	};
+
+	if (stroke == StrokeType::Intake) {
+		const float progress = currentPhase / 180.0f;
+		for (int particle = 0; particle < 7; ++particle) {
+			const float offset = static_cast<float>(particle) / 7.0f;
+			const float travel = std::fmod(progress * 1.35f + offset, 1.0f);
+			const float spiral = phaseTime * 1.8f + static_cast<float>(particle) * 2.35f;
+			const float radius = 0.08f + 0.16f * travel;
+			const glm::vec3 position(
+				xPosition + std::cos(spiral) * radius,
+				chamberTop - travel * chamberHeight * 0.82f,
+				-0.15f + std::sin(spiral) * radius * 0.65f
+			);
+			drawParticle(position, 0.035f, glm::vec4(0.32f, 0.66f, 0.82f, 1.0f));
+		}
+		return;
+	}
+
+	if (stroke == StrokeType::Compression) {
+		const float progress = (currentPhase - 180.0f) / 180.0f;
+		const float cloudRadius = glm::mix(0.25f, 0.10f, progress);
+		const float cloudCenterY = pistonY + chamberHeight * glm::mix(0.55f, 0.76f, progress);
+		for (int particle = 0; particle < 7; ++particle) {
+			const float angle = phaseTime * 1.4f + static_cast<float>(particle) * 2.40f;
+			const float layer = static_cast<float>(particle % 3) / 2.0f;
+			const glm::vec3 position(
+				xPosition + std::cos(angle) * cloudRadius * (0.55f + layer * 0.35f),
+				cloudCenterY + (layer - 0.5f) * chamberHeight * 0.22f,
+				std::sin(angle) * cloudRadius * 0.72f
+			);
+			const glm::vec4 color = glm::mix(
+				glm::vec4(0.38f, 0.62f, 0.76f, 1.0f),
+				glm::vec4(0.78f, 0.66f, 0.30f, 1.0f),
+				progress
+			);
+			drawParticle(position, 0.032f + progress * 0.008f, color);
+		}
+		return;
+	}
+
+	if (stroke == StrokeType::Power) {
+		const float progress = (currentPhase - 360.0f) / 180.0f;
+		const float flash = std::clamp(1.0f - progress / 0.24f, 0.0f, 1.0f);
+		if (flash > 0.0f) {
+			glm::mat4 core = glm::translate(
+				glm::mat4(1.0f),
+				glm::vec3(xPosition, chamberTop - chamberHeight * 0.22f, 0.0f)
+			);
+			core = glm::scale(core, glm::vec3(
+				0.10f + flash * 0.16f,
+				0.035f + flash * 0.06f,
+				0.10f + flash * 0.16f
+			));
+			drawMesh(cylinderMesh, shader, view, projection, core, glm::vec4(1.0f, 0.72f, 0.12f, 1.0f));
+		}
+
+		for (int particle = 0; particle < 6; ++particle) {
+			const float angle = static_cast<float>(particle) * PI / 3.0f + phaseTime;
+			const float expansion = 0.07f + std::min(progress, 0.55f) * 0.34f;
+			const glm::vec3 position(
+				xPosition + std::cos(angle) * expansion,
+				chamberTop - chamberHeight * (0.20f + progress * 0.48f),
+				std::sin(angle) * expansion * 0.60f
+			);
+			drawParticle(position, 0.038f, glm::vec4(0.90f, 0.34f, 0.08f, 1.0f));
+		}
+		return;
+	}
+
+	const float progress = (currentPhase - 540.0f) / 180.0f;
+	for (int particle = 0; particle < 6; ++particle) {
+		const float offset = static_cast<float>(particle) / 6.0f;
+		const float travel = std::fmod(progress * 1.25f + offset, 1.0f);
+		const glm::vec3 start(
+			xPosition + std::cos(phaseTime + particle) * 0.18f,
+			pistonY + chamberHeight * 0.45f,
+			0.04f
+		);
+		const glm::vec3 exit(xPosition + (particle % 2 == 0 ? -0.18f : 0.18f), 1.24f, 0.20f);
+		const glm::vec3 position = glm::mix(start, exit, travel);
+		drawParticle(position, 0.034f, glm::vec4(0.46f, 0.25f, 0.18f, 1.0f));
+	}
+
 	(void)boxMesh;
-	(void)cylinderMesh;
-	(void)shader;
-	(void)view;
-	(void)projection;
-	(void)stroke;
-	(void)currentPhase;
-	(void)pistonY;
 }
 
-void Cylinder::drawSpring(const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, const glm::vec3& bottom, const glm::vec3& top, float lift) const {
-	const glm::vec3 compressedTop = glm::mix(top, bottom, lift * 0.55f);
-	const glm::vec3 axis = compressedTop - bottom;
-	const glm::vec3 direction = glm::length(axis) > 0.0001f ? glm::normalize(axis) : glm::vec3(0.0f, 1.0f, 0.0f);
-	const glm::vec3 up(0.0f, 1.0f, 0.0f);
-	const float dotValue = std::clamp(glm::dot(up, direction), -1.0f, 1.0f);
-	const float angle = std::acos(dotValue);
-	const glm::vec3 rotationAxis = glm::cross(up, direction);
+void Cylinder::drawSpring(const EngineMesh& cylinderMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, const glm::vec3& bottom, const glm::vec3& top, float springRadius, float wireRadius, int turns) const {
+	const glm::vec3 springAxis = top - bottom;
+	const float springLength = glm::length(springAxis);
+	if (springLength < 0.0001f) {
+		return;
+	}
 
-	for (int ring = 0; ring < 6; ++ring) {
-		const float t = static_cast<float>(ring) / 5.0f;
-		const glm::vec3 center = glm::mix(bottom, compressedTop, t);
-		glm::mat4 springRing = glm::translate(glm::mat4(1.0f), center);
-		if (glm::length(rotationAxis) > 0.0001f) {
-			springRing = glm::rotate(springRing, angle, glm::normalize(rotationAxis));
-		}
-		springRing = glm::scale(springRing, glm::vec3(0.096f, 0.010f, 0.096f));
-		drawMesh(cylinderMesh, shader, view, projection, springRing, glm::vec4(0.12f, 0.12f, 0.11f, 1.0f));
+	const glm::vec3 direction = springAxis / springLength;
+	glm::vec3 basisU = glm::cross(direction, glm::vec3(1.0f, 0.0f, 0.0f));
+	if (glm::length(basisU) < 0.0001f) {
+		basisU = glm::cross(direction, glm::vec3(0.0f, 0.0f, 1.0f));
+	}
+	basisU = glm::normalize(basisU);
+	const glm::vec3 basisV = glm::normalize(glm::cross(direction, basisU));
 
-		glm::mat4 innerGap = glm::translate(glm::mat4(1.0f), center + direction * 0.001f);
-		if (glm::length(rotationAxis) > 0.0001f) {
-			innerGap = glm::rotate(innerGap, angle, glm::normalize(rotationAxis));
-		}
-		innerGap = glm::scale(innerGap, glm::vec3(0.064f, 0.012f, 0.064f));
-		drawMesh(cylinderMesh, shader, view, projection, innerGap, glm::vec4(0.58f, 0.60f, 0.56f, 1.0f));
+	const int segments = turns * 12;
+	glm::vec3 previous = bottom + basisU * springRadius;
+
+	for (int segment = 1; segment <= segments; ++segment) {
+		const float t = static_cast<float>(segment) / static_cast<float>(segments);
+		const float angle = t * static_cast<float>(turns) * 2.0f * PI;
+		const glm::vec3 center = glm::mix(bottom, top, t);
+		const glm::vec3 current = center
+			+ basisU * (std::cos(angle) * springRadius)
+			+ basisV * (std::sin(angle) * springRadius);
+		const glm::mat4 coilSegment = alignCylinderBetween(previous, current, wireRadius);
+		drawMesh(cylinderMesh, shader, view, projection, coilSegment, glm::vec4(0.15f, 0.16f, 0.15f, 1.0f));
+		previous = current;
 	}
 }
 

@@ -25,10 +25,12 @@ EngineSimulator::EngineSimulator()
 	  metalTexture(0),
 	  darkMetalTexture(0),
 	  rubberTexture(0) {
-	cylinders.emplace_back(0, -2.1f, 0.0f);
-	cylinders.emplace_back(1, -0.7f, 180.0f);
-	cylinders.emplace_back(2, 0.7f, 360.0f);
-	cylinders.emplace_back(3, 2.1f, 540.0f);
+	// Inline-four crank pairs: 1+4 together, 2+3 opposite.
+	// Cycle offsets produce the conventional 1-3-4-2 firing order.
+	cylinders.emplace_back(0, -2.1f, 0.0f, 360.0f);
+	cylinders.emplace_back(1, -0.7f, 180.0f, 540.0f);
+	cylinders.emplace_back(2, 0.7f, 180.0f, 180.0f);
+	cylinders.emplace_back(3, 2.1f, 0.0f, 0.0f);
 }
 
 void EngineSimulator::update(GLFWwindow* window, float deltaTime) {
@@ -71,7 +73,7 @@ void EngineSimulator::draw(ShaderProgram* shader, const glm::mat4& view, const g
 	drawEngineBlockCutaway(shader, view, projection);
 
 	for (const Cylinder& cylinder : cylinders) {
-		cylinder.draw(boxMesh, cylinderMesh, halfCylinderMesh, halfDiskMesh, shader, view, projection, crankAngle, metalTexture, darkMetalTexture, rubberTexture);
+		cylinder.draw(boxMesh, cylinderMesh, halfCylinderMesh, valvePlateMesh, valveSeatMesh, shader, view, projection, crankAngle, metalTexture, darkMetalTexture, rubberTexture);
 	}
 
 	drawCrankshaftAssembly(shader, view, projection);
@@ -83,8 +85,12 @@ void EngineSimulator::draw(ShaderProgram* shader, const glm::mat4& view, const g
 void EngineSimulator::destroy() {
 	boxMesh.destroy();
 	cylinderMesh.destroy();
+	camLobeMesh.destroy();
 	halfCylinderMesh.destroy();
-	halfDiskMesh.destroy();
+	intakeManifoldMesh.destroy();
+	exhaustManifoldMesh.destroy();
+	valvePlateMesh.destroy();
+	valveSeatMesh.destroy();
 	destroyTextures();
 	meshesReady = false;
 }
@@ -96,8 +102,12 @@ void EngineSimulator::initMeshes() {
 
 	boxMesh = EngineMesh::createBox();
 	cylinderMesh = EngineMesh::createCylinder(64);
+	camLobeMesh = EngineMesh::createCamLobe(96);
 	halfCylinderMesh = EngineMesh::createHalfCylinder(48);
-	halfDiskMesh = EngineMesh::createHalfDisk(48);
+	intakeManifoldMesh = EngineMesh::createPortedHalfCylinder(48, 96, false);
+	exhaustManifoldMesh = EngineMesh::createPortedHalfCylinder(48, 96, true);
+	valvePlateMesh = EngineMesh::createValvePlate(96, 40);
+	valveSeatMesh = EngineMesh::createRing(64, 0.72f);
 	initTextures();
 	meshesReady = true;
 }
@@ -229,13 +239,6 @@ void EngineSimulator::drawEngineBlockCutaway(ShaderProgram* shader, const glm::m
 		drawMesh(boxMesh, shader, view, projection, web, glm::vec4(0.44f, 0.47f, 0.45f, 1.0f));
 	}
 
-	for (int i = 0; i < 4; ++i) {
-		const float x = -2.1f + i * 1.4f;
-		glm::mat4 deckRing = glm::translate(base, glm::vec3(x, 1.18f, 0.0f));
-		deckRing = glm::scale(deckRing, glm::vec3(0.80f, 0.10f, 0.80f));
-		drawMesh(cylinderMesh, shader, view, projection, deckRing, glm::vec4(0.60f, 0.62f, 0.58f, 1.0f));
-	}
-
 	for (int i = 0; i < 9; ++i) {
 		const float x = -2.8f + i * 0.7f;
 		glm::mat4 railBolt = glm::translate(base, glm::vec3(x, -1.05f, -0.70f));
@@ -295,7 +298,8 @@ void EngineSimulator::drawCrankshaftAssembly(ShaderProgram* shader, const glm::m
 
 	for (int i = 0; i < 4; ++i) {
 		const float x = -2.1f + i * 1.4f;
-		const float phase = (crankAngle + i * 180.0f) * PI / 180.0f;
+		const float crankOffsets[4] = {0.0f, 180.0f, 180.0f, 0.0f};
+		const float phase = (crankAngle + crankOffsets[i]) * PI / 180.0f + PI * 0.5f;
 		const glm::vec3 pin(x, mainY + throwRadius * std::sin(phase), throwRadius * std::cos(phase));
 		const glm::vec3 counterCenter(x, mainY - throwRadius * 0.74f * std::sin(phase), -throwRadius * 0.74f * std::cos(phase));
 
@@ -353,6 +357,22 @@ void EngineSimulator::drawValveTrain(ShaderProgram* shader, const glm::mat4& vie
 	const glm::mat4 base = glm::mat4(1.0f);
 	const glm::vec4 camColor(0.10f, 0.11f, 0.12f, 1.0f);
 	const glm::vec4 lobeColor(0.72f, 0.72f, 0.68f, 1.0f);
+	const auto alignBoxBetween = [](const glm::vec3& start, const glm::vec3& end, float thickness) {
+		const glm::vec3 direction = end - start;
+		const float length = glm::length(direction);
+		glm::mat4 model = glm::translate(glm::mat4(1.0f), (start + end) * 0.5f);
+		if (length > 0.0001f) {
+			const glm::vec3 up(0.0f, 1.0f, 0.0f);
+			const glm::vec3 target = direction / length;
+			const float dotValue = std::clamp(glm::dot(up, target), -1.0f, 1.0f);
+			const float angle = std::acos(dotValue);
+			const glm::vec3 axis = glm::cross(up, target);
+			if (glm::length(axis) > 0.0001f) {
+				model = glm::rotate(model, angle, glm::normalize(axis));
+			}
+		}
+		return glm::scale(model, glm::vec3(thickness, length, thickness));
+	};
 	const float camAngle = crankAngle * 0.5f * PI / 180.0f;
 	const float camVisibleLength = 5.10f;
 	const float sprocketX = -3.22f;
@@ -381,19 +401,64 @@ void EngineSimulator::drawValveTrain(ShaderProgram* shader, const glm::mat4& vie
 
 		for (int i = 0; i < 4; ++i) {
 			const float x = -2.1f + i * 1.4f;
-			const float lobeAngle = camAngle + i * PI * 0.5f + row * PI * 0.25f;
-			const float noseY = 0.10f * std::cos(lobeAngle);
-			const float noseZ = 0.10f * std::sin(lobeAngle);
+			const float cycleOffsets[4] = {360.0f, 540.0f, 180.0f, 0.0f};
+			const float cylinderPhase = std::fmod(crankAngle + cycleOffsets[i], 720.0f);
+			const float phaseOnCam = cylinderPhase * 0.5f * PI / 180.0f;
+			const float timingOffset = row == 0 ? 3.0f * PI / 4.0f : 5.0f * PI / 4.0f;
+			const float lobeAngle = phaseOnCam + timingOffset;
 
-			glm::mat4 lobeBase = glm::translate(base, glm::vec3(x, 2.25f, z));
-			lobeBase = glm::rotate(lobeBase, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
-			lobeBase = glm::scale(lobeBase, glm::vec3(0.18f, 0.11f, 0.18f));
-			drawMesh(cylinderMesh, shader, view, projection, lobeBase, lobeColor);
+			for (float valveOffsetX : {-0.20f, 0.20f}) {
+				const float lobeX = x + valveOffsetX;
+				glm::mat4 lobe = glm::translate(base, glm::vec3(lobeX, 2.25f, z));
+				lobe = glm::rotate(lobe, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+				lobe = glm::rotate(lobe, lobeAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+				lobe = glm::scale(lobe, glm::vec3(0.52f, 0.14f, 0.52f));
+				drawMesh(camLobeMesh, shader, view, projection, lobe, lobeColor);
+			}
 
-			glm::mat4 lobeNose = glm::translate(base, glm::vec3(x, 2.25f + noseY, z + noseZ));
-			lobeNose = glm::rotate(lobeNose, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
-			lobeNose = glm::scale(lobeNose, glm::vec3(0.13f, 0.13f, 0.13f));
-			drawMesh(cylinderMesh, shader, view, projection, lobeNose, lobeColor);
+			if (row == 0) {
+				float injectionStroke = 0.0f;
+				if (cylinderPhase >= 330.0f && cylinderPhase <= 390.0f) {
+					const float injectionLocal = (cylinderPhase - 330.0f) / 60.0f;
+					injectionStroke = 0.15f * std::sin(PI * injectionLocal) * std::sin(PI * injectionLocal);
+				}
+
+				// At peak injection the lobe nose points toward the follower.
+				const float injectionLobeAngle = phaseOnCam;
+				glm::mat4 injectionLobe = glm::translate(base, glm::vec3(x, 2.25f, z));
+				injectionLobe = glm::rotate(injectionLobe, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+				injectionLobe = glm::rotate(injectionLobe, injectionLobeAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+				injectionLobe = glm::scale(injectionLobe, glm::vec3(0.40f, 0.13f, 0.40f));
+				drawMesh(camLobeMesh, shader, view, projection, injectionLobe, glm::vec4(0.62f, 0.64f, 0.60f, 1.0f));
+
+				const glm::vec3 injectorAxis = glm::normalize(glm::vec3(0.0f, 0.625f, -0.18f));
+				const glm::vec3 injectorPad = glm::vec3(x, 1.91f, -0.18f)
+					+ injectorAxis * (0.025f - injectionStroke);
+				const float injectionRatio = injectionStroke / 0.15f;
+				const glm::vec3 rockerRoller(x, 2.04f - injectionRatio * 0.075f, -0.43f);
+				const glm::vec3 rockerPivot(x, 1.985f, -0.285f);
+
+				glm::mat4 rollerArm = alignBoxBetween(rockerPivot, rockerRoller, 0.078f);
+				drawMesh(boxMesh, shader, view, projection, rollerArm, glm::vec4(0.58f, 0.60f, 0.57f, 1.0f));
+
+				glm::mat4 pressureArm = alignBoxBetween(rockerPivot, injectorPad, 0.082f);
+				drawMesh(boxMesh, shader, view, projection, pressureArm, glm::vec4(0.58f, 0.60f, 0.57f, 1.0f));
+
+				glm::mat4 rockerRollerMesh = glm::translate(base, rockerRoller);
+				rockerRollerMesh = glm::rotate(rockerRollerMesh, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+				rockerRollerMesh = glm::scale(rockerRollerMesh, glm::vec3(0.085f, 0.070f, 0.085f));
+				drawMesh(cylinderMesh, shader, view, projection, rockerRollerMesh, glm::vec4(0.76f, 0.77f, 0.72f, 1.0f));
+
+				glm::mat4 rockerPivotMesh = glm::translate(base, rockerPivot);
+				rockerPivotMesh = glm::rotate(rockerPivotMesh, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+				rockerPivotMesh = glm::scale(rockerPivotMesh, glm::vec3(0.125f, 0.110f, 0.125f));
+				drawMesh(cylinderMesh, shader, view, projection, rockerPivotMesh, glm::vec4(0.42f, 0.44f, 0.42f, 1.0f));
+
+				glm::mat4 pressureFoot = glm::translate(base, injectorPad);
+				pressureFoot = glm::rotate(pressureFoot, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+				pressureFoot = glm::scale(pressureFoot, glm::vec3(0.125f, 0.055f, 0.125f));
+				drawMesh(cylinderMesh, shader, view, projection, pressureFoot, glm::vec4(0.68f, 0.69f, 0.65f, 1.0f));
+			}
 
 			glm::mat4 camBearing = glm::translate(base, glm::vec3(x + 0.40f, 2.25f, z));
 			camBearing = glm::rotate(camBearing, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
@@ -483,33 +548,302 @@ void EngineSimulator::drawTimingChain(ShaderProgram* shader, const glm::mat4& vi
 
 void EngineSimulator::drawManifolds(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
 	const glm::mat4 base = glm::mat4(1.0f);
+	const auto alignOpenPipeBetween = [](const glm::vec3& start, const glm::vec3& end, float radius) {
+		const glm::vec3 direction = end - start;
+		const float length = glm::length(direction);
+		if (length < 0.0001f) {
+			return glm::mat4(1.0f);
+		}
 
-	glm::mat4 intakeRail = glm::translate(base, glm::vec3(0.0f, 1.82f, -1.05f));
-	intakeRail = glm::rotate(intakeRail, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
-	intakeRail = glm::scale(intakeRail, glm::vec3(0.16f, 5.4f, 0.16f));
-	drawMesh(cylinderMesh, shader, view, projection, intakeRail, glm::vec4(0.28f, 0.37f, 0.42f, 1.0f));
+		const glm::vec3 pipeAxis = direction / length;
+		const glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
+		glm::vec3 openingUp = worldUp - pipeAxis * glm::dot(worldUp, pipeAxis);
+		if (glm::length(openingUp) < 0.0001f) {
+			openingUp = glm::vec3(0.0f, 0.0f, -1.0f);
+		}
+		openingUp = glm::normalize(openingUp);
 
-	glm::mat4 exhaustRail = glm::translate(base, glm::vec3(0.0f, 1.60f, 1.05f));
-	exhaustRail = glm::rotate(exhaustRail, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
-	exhaustRail = glm::scale(exhaustRail, glm::vec3(0.18f, 5.4f, 0.18f));
-	drawMesh(cylinderMesh, shader, view, projection, exhaustRail, glm::vec4(0.40f, 0.32f, 0.25f, 1.0f));
+		const glm::vec3 shellDirection = -openingUp;
+		const glm::vec3 localX = glm::normalize(glm::cross(pipeAxis, shellDirection));
+		glm::mat4 orientation(1.0f);
+		orientation[0] = glm::vec4(localX, 0.0f);
+		orientation[1] = glm::vec4(pipeAxis, 0.0f);
+		orientation[2] = glm::vec4(shellDirection, 0.0f);
+
+		glm::mat4 model = glm::translate(glm::mat4(1.0f), (start + end) * 0.5f) * orientation;
+		return glm::scale(model, glm::vec3(radius, length, radius));
+	};
+	const auto alignCylinderBetween = [](const glm::vec3& start, const glm::vec3& end, float radius) {
+		const glm::vec3 direction = end - start;
+		const float length = glm::length(direction);
+		glm::mat4 model = glm::translate(glm::mat4(1.0f), (start + end) * 0.5f);
+		if (length > 0.0001f) {
+			const glm::vec3 up(0.0f, 1.0f, 0.0f);
+			const glm::vec3 target = direction / length;
+			const float dotValue = std::clamp(glm::dot(up, target), -1.0f, 1.0f);
+			const float angle = std::acos(dotValue);
+			const glm::vec3 axis = glm::cross(up, target);
+			if (glm::length(axis) > 0.0001f) {
+				model = glm::rotate(model, angle, glm::normalize(axis));
+			}
+		}
+		return glm::scale(model, glm::vec3(radius, length, radius));
+	};
+	const auto pointOnCurve = [](const glm::vec3& start, const glm::vec3& control, const glm::vec3& end, float t) {
+		const float inverse = 1.0f - t;
+		return inverse * inverse * start + 2.0f * inverse * t * control + t * t * end;
+	};
+	const auto drawCurvedPipe = [&](const glm::vec3& start, const glm::vec3& control, const glm::vec3& end, float startRadius, float endRadius, const glm::vec4& color) {
+		const int segments = 7;
+		glm::vec3 previous = start;
+		for (int segment = 1; segment <= segments; ++segment) {
+			const float t = static_cast<float>(segment) / static_cast<float>(segments);
+			const glm::vec3 current = pointOnCurve(start, control, end, t);
+			const float radius = glm::mix(startRadius, endRadius, (t - 0.5f / static_cast<float>(segments)));
+			drawMesh(
+				halfCylinderMesh,
+				shader,
+				view,
+				projection,
+				alignOpenPipeBetween(previous, current, radius),
+				color
+			);
+			previous = current;
+		}
+	};
+
+	glm::mat4 intakeRail = alignOpenPipeBetween(
+		glm::vec3(-3.0f, 1.72f, -1.10f),
+		glm::vec3(3.0f, 1.72f, -1.10f),
+		0.28f
+	);
+	drawMesh(intakeManifoldMesh, shader, view, projection, intakeRail, glm::vec4(0.34f, 0.48f, 0.53f, 1.0f));
+
+	const int plenumMarkerCount = 14;
+	for (int marker = 0; marker < plenumMarkerCount; ++marker) {
+		const float markerOffset = static_cast<float>(marker) / static_cast<float>(plenumMarkerCount);
+		const float travel = std::fmod(crankAngle / 720.0f * 0.85f + markerOffset, 1.0f);
+		const float markerX = glm::mix(-2.82f, 2.82f, travel);
+		const float wave = std::sin(travel * 4.0f * PI + static_cast<float>(marker) * 0.35f);
+		const glm::vec3 markerPosition(markerX, 1.66f + wave * 0.035f, -1.10f);
+
+		glm::mat4 plenumMarker = glm::translate(base, markerPosition);
+		plenumMarker = glm::scale(plenumMarker, glm::vec3(0.070f, 0.032f, 0.055f));
+		drawMesh(
+			cylinderMesh,
+			shader,
+			view,
+			projection,
+			plenumMarker,
+			glm::vec4(0.26f, 0.66f, 0.82f, 1.0f)
+		);
+	}
+
+	glm::mat4 exhaustRail = alignOpenPipeBetween(
+		glm::vec3(-3.0f, 1.60f, 1.10f),
+		glm::vec3(3.0f, 1.60f, 1.10f),
+		0.30f
+	);
+	drawMesh(exhaustManifoldMesh, shader, view, projection, exhaustRail, glm::vec4(0.48f, 0.36f, 0.27f, 1.0f));
+
+	const glm::vec3 fuelRailStart(-2.85f, 1.82f, -0.52f);
+	const glm::vec3 fuelRailEnd(2.85f, 1.82f, -0.52f);
+	glm::mat4 fuelRail = alignOpenPipeBetween(fuelRailStart, fuelRailEnd, 0.095f);
+	drawMesh(halfCylinderMesh, shader, view, projection, fuelRail, glm::vec4(0.64f, 0.50f, 0.20f, 1.0f));
+
+	for (int marker = 0; marker < 12; ++marker) {
+		const float offset = static_cast<float>(marker) / 12.0f;
+		const float travel = std::fmod(crankAngle / 720.0f * 0.75f + offset, 1.0f);
+		const glm::vec3 markerPosition = glm::mix(fuelRailStart, fuelRailEnd, travel)
+			+ glm::vec3(0.0f, -0.035f, 0.0f);
+		glm::mat4 fuelMarker = glm::translate(base, markerPosition);
+		fuelMarker = glm::scale(fuelMarker, glm::vec3(0.045f, 0.022f, 0.035f));
+		drawMesh(cylinderMesh, shader, view, projection, fuelMarker, glm::vec4(0.96f, 0.67f, 0.12f, 1.0f));
+	}
+
+	const int exhaustMarkerCount = 12;
+	for (int marker = 0; marker < exhaustMarkerCount; ++marker) {
+		const float markerOffset = static_cast<float>(marker) / static_cast<float>(exhaustMarkerCount);
+		const float travel = std::fmod(crankAngle / 720.0f * 0.62f + markerOffset, 1.0f);
+		const float markerX = glm::mix(-2.82f, 2.82f, travel);
+		const float wave = std::sin(travel * 3.0f * PI + static_cast<float>(marker) * 0.42f);
+		const glm::vec3 markerPosition(markerX, 1.54f + wave * 0.040f, 1.10f);
+
+		glm::mat4 exhaustPlenumMarker = glm::translate(base, markerPosition);
+		exhaustPlenumMarker = glm::scale(exhaustPlenumMarker, glm::vec3(0.075f, 0.035f, 0.060f));
+		drawMesh(
+			cylinderMesh,
+			shader,
+			view,
+			projection,
+			exhaustPlenumMarker,
+			glm::vec4(0.52f, 0.24f, 0.14f, 1.0f)
+		);
+	}
 
 	for (int i = 0; i < 4; ++i) {
 		const float x = -2.1f + i * 1.4f;
+		const float cycleOffsets[4] = {360.0f, 540.0f, 180.0f, 0.0f};
+		float cylinderPhase = std::fmod(crankAngle + cycleOffsets[i], 720.0f);
+		if (cylinderPhase < 0.0f) {
+			cylinderPhase += 720.0f;
+		}
+		float intakeFlow = 0.0f;
+		float exhaustFlow = 0.0f;
+		float flowProgress = 0.0f;
+		if (cylinderPhase < 180.0f) {
+			flowProgress = cylinderPhase / 180.0f;
+			intakeFlow = std::sin(PI * flowProgress);
+			intakeFlow *= intakeFlow;
+		} else if (cylinderPhase >= 540.0f) {
+			flowProgress = (cylinderPhase - 540.0f) / 180.0f;
+			exhaustFlow = std::sin(PI * flowProgress);
+			exhaustFlow *= exhaustFlow;
+		}
 
-		glm::mat4 intakeRunner = glm::translate(base, glm::vec3(x, 1.66f, -0.72f));
-		intakeRunner = glm::rotate(intakeRunner, 0.60f, glm::vec3(1.0f, 0.0f, 0.0f));
-		intakeRunner = glm::scale(intakeRunner, glm::vec3(0.10f, 0.78f, 0.10f));
-		drawMesh(cylinderMesh, shader, view, projection, intakeRunner, glm::vec4(0.30f, 0.43f, 0.50f, 1.0f));
+		const glm::vec3 intakeMerge(x, 1.52f, -0.61f);
+		const glm::vec3 intakeThroat(x, 1.57f, -0.68f);
+		const glm::vec3 intakeTrunkControl(x, 1.61f, -0.83f);
+		const glm::vec3 intakeJunction(x, 1.70f, -0.96f);
+		const glm::vec3 exhaustMerge(x, 1.49f, 0.61f);
+		const glm::vec3 exhaustThroat(x, 1.53f, 0.68f);
+		const glm::vec3 exhaustTrunkControl(x, 1.53f, 0.83f);
+		const glm::vec3 exhaustJunction(x, 1.58f, 0.96f);
 
-		glm::mat4 exhaustRunner = glm::translate(base, glm::vec3(x, 1.48f, 0.72f));
-		exhaustRunner = glm::rotate(exhaustRunner, -0.60f, glm::vec3(1.0f, 0.0f, 0.0f));
-		exhaustRunner = glm::scale(exhaustRunner, glm::vec3(0.11f, 0.78f, 0.11f));
-		drawMesh(cylinderMesh, shader, view, projection, exhaustRunner, glm::vec4(0.50f, 0.38f, 0.26f, 1.0f));
+		const glm::vec3 injectorAxis = glm::normalize(glm::vec3(0.0f, 0.625f, -0.18f));
+		const glm::vec3 injectorFuelPort = glm::vec3(x, 1.285f, 0.0f)
+			+ injectorAxis * 0.45f
+			+ glm::vec3(0.0f, 0.0f, -0.15f);
+		const glm::vec3 fuelRailTap(x, 1.82f, -0.52f);
+		const glm::vec3 fuelLineElbow(x, injectorFuelPort.y + 0.03f, -0.43f);
 
-		glm::mat4 fuelLine = glm::translate(base, glm::vec3(x, 2.25f, -0.12f));
-		fuelLine = glm::scale(fuelLine, glm::vec3(0.04f, 0.62f, 0.04f));
-		drawMesh(cylinderMesh, shader, view, projection, fuelLine, glm::vec4(0.18f, 0.20f, 0.22f, 1.0f));
+		glm::mat4 fuelDrop = alignCylinderBetween(fuelRailTap, fuelLineElbow, 0.030f);
+		drawMesh(cylinderMesh, shader, view, projection, fuelDrop, glm::vec4(0.70f, 0.61f, 0.38f, 1.0f));
+
+		glm::mat4 injectorFeed = alignCylinderBetween(fuelLineElbow, injectorFuelPort, 0.030f);
+		drawMesh(cylinderMesh, shader, view, projection, injectorFeed, glm::vec4(0.70f, 0.61f, 0.38f, 1.0f));
+
+		for (int marker = 0; marker < 2; ++marker) {
+			const float local = std::fmod(
+				crankAngle / 720.0f * 1.15f + static_cast<float>(marker) * 0.5f,
+				1.0f
+			);
+			const glm::vec3 fuelPosition = local < 0.55f
+				? glm::mix(fuelRailTap, fuelLineElbow, local / 0.55f)
+				: glm::mix(fuelLineElbow, injectorFuelPort, (local - 0.55f) / 0.45f);
+			glm::mat4 branchMarker = glm::translate(base, fuelPosition);
+			branchMarker = glm::scale(branchMarker, glm::vec3(0.036f, 0.024f, 0.036f));
+			drawMesh(cylinderMesh, shader, view, projection, branchMarker, glm::vec4(0.98f, 0.70f, 0.14f, 1.0f));
+		}
+
+		for (float localX : {-0.20f, 0.20f}) {
+			const glm::vec3 intakeSeat(x + localX, 1.315f, -0.20f);
+			const glm::vec3 intakeBranchControl(x + localX * 0.72f, 1.40f, -0.43f);
+			const glm::vec3 intakeBranchEnd(x + localX * 0.22f, 1.505f, -0.59f);
+			drawCurvedPipe(
+				intakeSeat,
+				intakeBranchControl,
+				intakeBranchEnd,
+				0.105f,
+				0.175f,
+				glm::vec4(0.39f, 0.55f, 0.60f, 1.0f)
+			);
+
+			const glm::vec3 exhaustSeat(x + localX, 1.315f, 0.20f);
+			const glm::vec3 exhaustBranchControl(x + localX * 0.72f, 1.39f, 0.43f);
+			const glm::vec3 exhaustBranchEnd(x + localX * 0.22f, 1.475f, 0.59f);
+			drawCurvedPipe(
+				exhaustSeat,
+				exhaustBranchControl,
+				exhaustBranchEnd,
+				0.110f,
+				0.185f,
+				glm::vec4(0.55f, 0.40f, 0.28f, 1.0f)
+			);
+		}
+
+		drawMesh(
+			halfCylinderMesh,
+			shader,
+			view,
+			projection,
+			alignOpenPipeBetween(intakeMerge, intakeThroat, 0.235f),
+			glm::vec4(0.36f, 0.51f, 0.56f, 1.0f)
+		);
+		drawCurvedPipe(
+			intakeThroat,
+			intakeTrunkControl,
+			intakeJunction,
+			0.23f,
+			0.28f,
+			glm::vec4(0.34f, 0.48f, 0.53f, 1.0f)
+		);
+		drawMesh(
+			halfCylinderMesh,
+			shader,
+			view,
+			projection,
+			alignOpenPipeBetween(exhaustMerge, exhaustThroat, 0.245f),
+			glm::vec4(0.51f, 0.38f, 0.27f, 1.0f)
+		);
+		drawCurvedPipe(
+			exhaustThroat,
+			exhaustTrunkControl,
+			exhaustJunction,
+			0.24f,
+			0.29f,
+			glm::vec4(0.48f, 0.35f, 0.25f, 1.0f)
+		);
+
+		glm::mat4 intakeCollar = alignOpenPipeBetween(
+			glm::vec3(x, 1.70f, -0.99f),
+			glm::vec3(x, 1.70f, -0.93f),
+			0.31f
+		);
+		drawMesh(valveSeatMesh, shader, view, projection, intakeCollar, glm::vec4(0.48f, 0.59f, 0.61f, 1.0f));
+
+		glm::mat4 exhaustCollar = alignOpenPipeBetween(
+			glm::vec3(x, 1.58f, 0.93f),
+			glm::vec3(x, 1.58f, 0.99f),
+			0.32f
+		);
+		drawMesh(valveSeatMesh, shader, view, projection, exhaustCollar, glm::vec4(0.58f, 0.46f, 0.34f, 1.0f));
+
+		for (int marker = 0; marker < 4; ++marker) {
+			const float markerOffset = static_cast<float>(marker) / 4.0f;
+			const float branchSide = marker % 2 == 0 ? -0.20f : 0.20f;
+			if (intakeFlow > 0.01f) {
+				const float travel = std::fmod(flowProgress * 1.6f + markerOffset, 1.0f);
+				glm::vec3 markerPosition;
+				if (travel < 0.48f) {
+					markerPosition = pointOnCurve(intakeJunction, intakeTrunkControl, intakeMerge, travel / 0.48f);
+				} else {
+					const glm::vec3 intakeSeat(x + branchSide, 1.315f, -0.20f);
+					const glm::vec3 intakeBranchControl(x + branchSide * 0.72f, 1.40f, -0.43f);
+					markerPosition = pointOnCurve(intakeMerge, intakeBranchControl, intakeSeat, (travel - 0.48f) / 0.52f);
+				}
+				const float markerSize = 0.035f + intakeFlow * 0.040f;
+				glm::mat4 intakeMarker = glm::translate(base, markerPosition);
+				intakeMarker = glm::scale(intakeMarker, glm::vec3(markerSize, markerSize * 0.55f, markerSize));
+				drawMesh(cylinderMesh, shader, view, projection, intakeMarker, glm::vec4(0.28f, 0.68f, 0.82f, 1.0f));
+			}
+			if (exhaustFlow > 0.01f) {
+				const float travel = std::fmod(flowProgress * 1.8f + markerOffset, 1.0f);
+				glm::vec3 markerPosition;
+				if (travel < 0.52f) {
+					const glm::vec3 exhaustSeat(x + branchSide, 1.315f, 0.20f);
+					const glm::vec3 exhaustBranchControl(x + branchSide * 0.72f, 1.39f, 0.43f);
+					markerPosition = pointOnCurve(exhaustSeat, exhaustBranchControl, exhaustMerge, travel / 0.52f);
+				} else {
+					markerPosition = pointOnCurve(exhaustMerge, exhaustTrunkControl, exhaustJunction, (travel - 0.52f) / 0.48f);
+				}
+				const float markerSize = 0.040f + exhaustFlow * 0.045f;
+				glm::mat4 exhaustMarker = glm::translate(base, markerPosition);
+				exhaustMarker = glm::scale(exhaustMarker, glm::vec3(markerSize, markerSize * 0.55f, markerSize));
+				drawMesh(cylinderMesh, shader, view, projection, exhaustMarker, glm::vec4(0.68f, 0.30f, 0.16f, 1.0f));
+			}
+		}
+
 	}
 }
 

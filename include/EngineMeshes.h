@@ -21,8 +21,12 @@ public:
 
 	static EngineMesh createBox();
 	static EngineMesh createCylinder(int segments);
+	static EngineMesh createCamLobe(int segments);
 	static EngineMesh createHalfCylinder(int segments);
+	static EngineMesh createPortedHalfCylinder(int arcSegments, int axialSegments, bool portsOnPositiveSide);
 	static EngineMesh createHalfDisk(int segments);
+	static EngineMesh createValvePlate(int gridResolution, int holeSegments);
+	static EngineMesh createRing(int segments, float innerRadius);
 
 private:
 	GLuint vao;

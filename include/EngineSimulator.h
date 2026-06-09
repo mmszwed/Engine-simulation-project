@@ -30,8 +30,12 @@ private:
 
 	EngineMesh boxMesh;
 	EngineMesh cylinderMesh;
+	EngineMesh camLobeMesh;
 	EngineMesh halfCylinderMesh;
-	EngineMesh halfDiskMesh;
+	EngineMesh intakeManifoldMesh;
+	EngineMesh exhaustManifoldMesh;
+	EngineMesh valvePlateMesh;
+	EngineMesh valveSeatMesh;
 	unsigned int metalTexture;
 	unsigned int darkMetalTexture;
 	unsigned int rubberTexture;

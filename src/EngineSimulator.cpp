@@ -11,6 +11,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "constants.h"
+#include "lodepng.h"
 #include "shaderprogram.h"
 
 EngineSimulator::EngineSimulator()
@@ -24,7 +25,10 @@ EngineSimulator::EngineSimulator()
 	  meshesReady(false),
 	  metalTexture(0),
 	  darkMetalTexture(0),
-	  rubberTexture(0) {
+	  rubberTexture(0),
+	  woodTexture(0),
+	  garageWallTexture(0),
+	  concreteFloorTexture(0) {
 	// Inline-four crank pairs: 1+4 together, 2+3 opposite.
 	// Cycle offsets produce the conventional 1-3-4-2 firing order.
 	cylinders.emplace_back(0, -2.1f, 0.0f, 360.0f);
@@ -70,6 +74,9 @@ void EngineSimulator::update(GLFWwindow* window, float deltaTime) {
 void EngineSimulator::draw(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) {
 	initMeshes();
 
+	drawGarageShell(shader, view, projection);
+	drawWorkshopStand(shader, view, projection);
+	drawFuelCanister(shader, view, projection);
 	drawEngineBlockCutaway(shader, view, projection);
 
 	for (const Cylinder& cylinder : cylinders) {
@@ -124,15 +131,24 @@ void EngineSimulator::initTextures() {
 	metalTexture = createProceduralTexture(0);
 	darkMetalTexture = createProceduralTexture(1);
 	rubberTexture = createProceduralTexture(2);
+	woodTexture = loadPngTexture("textures/wood_planks_dirt_diff_2k.png");
+	garageWallTexture = loadPngTexture("textures/painted_metal_shutter_disp_4k.png");
+	concreteFloorTexture = loadPngTexture("textures/hangar_concrete_floor_disp_4k.png");
 }
 
 void EngineSimulator::destroyTextures() {
 	if (metalTexture != 0) glDeleteTextures(1, &metalTexture);
 	if (darkMetalTexture != 0) glDeleteTextures(1, &darkMetalTexture);
 	if (rubberTexture != 0) glDeleteTextures(1, &rubberTexture);
+	if (woodTexture != 0) glDeleteTextures(1, &woodTexture);
+	if (garageWallTexture != 0) glDeleteTextures(1, &garageWallTexture);
+	if (concreteFloorTexture != 0) glDeleteTextures(1, &concreteFloorTexture);
 	metalTexture = 0;
 	darkMetalTexture = 0;
 	rubberTexture = 0;
+	woodTexture = 0;
+	garageWallTexture = 0;
+	concreteFloorTexture = 0;
 }
 
 unsigned int EngineSimulator::createProceduralTexture(int variant) const {
@@ -184,6 +200,39 @@ unsigned int EngineSimulator::createProceduralTexture(int variant) const {
 	return texture;
 }
 
+unsigned int EngineSimulator::loadPngTexture(const char* path) const {
+	std::vector<unsigned char> pixels;
+	unsigned int width = 0;
+	unsigned int height = 0;
+	const unsigned int error = lodepng::decode(pixels, width, height, path);
+	if (error != 0 || pixels.empty()) {
+		return 0;
+	}
+
+	GLuint texture = 0;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glTexImage2D(
+		GL_TEXTURE_2D,
+		0,
+		GL_RGBA,
+		static_cast<GLsizei>(width),
+		static_cast<GLsizei>(height),
+		0,
+		GL_RGBA,
+		GL_UNSIGNED_BYTE,
+		pixels.data()
+	);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	return texture;
+}
+
 unsigned int EngineSimulator::chooseTexture(const glm::vec4& color) const {
 	const float brightness = (color.r + color.g + color.b) / 3.0f;
 	if (brightness < 0.20f) {
@@ -193,6 +242,211 @@ unsigned int EngineSimulator::chooseTexture(const glm::vec4& color) const {
 		return darkMetalTexture;
 	}
 	return metalTexture;
+}
+
+void EngineSimulator::drawGarageShell(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
+	const glm::mat4 base(1.0f);
+	const glm::vec4 wallColor(0.62f, 0.66f, 0.67f, 1.0f);
+	const glm::vec4 beamColor(0.14f, 0.16f, 0.17f, 1.0f);
+	const glm::vec4 floorColor(0.66f, 0.67f, 0.65f, 1.0f);
+	const float floorY = -5.12f;
+	const float wallCenterY = -0.50f;
+	const float wallHeight = 9.4f;
+	const float garageHalfWidth = 8.5f;
+	const float garageBackZ = 7.0f;
+
+	glm::mat4 floor = glm::translate(base, glm::vec3(0.0f, floorY, -0.75f));
+	floor = glm::scale(floor, glm::vec3(19.0f, 0.16f, 17.5f));
+	drawTexturedMesh(boxMesh, shader, view, projection, floor, floorColor, concreteFloorTexture);
+
+	// Rear wall is split around a wide drive-through exit.
+	for (float side : {-1.0f, 1.0f}) {
+		glm::mat4 rearSection = glm::translate(
+			base,
+			glm::vec3(side * 5.45f, wallCenterY, garageBackZ)
+		);
+		rearSection = glm::scale(rearSection, glm::vec3(6.1f, wallHeight, 0.18f));
+		drawTexturedMesh(boxMesh, shader, view, projection, rearSection, wallColor, garageWallTexture);
+	}
+
+	glm::mat4 exitLintel = glm::translate(base, glm::vec3(0.0f, 3.30f, garageBackZ));
+	exitLintel = glm::scale(exitLintel, glm::vec3(4.8f, 1.80f, 0.18f));
+	drawTexturedMesh(boxMesh, shader, view, projection, exitLintel, wallColor, garageWallTexture);
+
+	glm::mat4 rightWall = glm::translate(base, glm::vec3(garageHalfWidth, wallCenterY, -0.45f));
+	rightWall = glm::scale(rightWall, glm::vec3(0.18f, wallHeight, 14.9f));
+	drawTexturedMesh(boxMesh, shader, view, projection, rightWall, wallColor, garageWallTexture);
+
+	for (float x : {-8.35f, -2.55f, 2.55f, 8.35f}) {
+		glm::mat4 post = glm::translate(base, glm::vec3(x, wallCenterY, garageBackZ - 0.17f));
+		post = glm::scale(post, glm::vec3(0.18f, wallHeight, 0.22f));
+		drawMesh(boxMesh, shader, view, projection, post, beamColor);
+	}
+
+	for (float z : {-7.70f, -4.75f, -1.80f, 1.15f, 4.10f, 6.85f}) {
+		glm::mat4 post = glm::translate(base, glm::vec3(garageHalfWidth - 0.18f, wallCenterY, z));
+		post = glm::scale(post, glm::vec3(0.20f, wallHeight, 0.16f));
+		drawMesh(boxMesh, shader, view, projection, post, beamColor);
+	}
+
+	glm::mat4 backTopBeam = glm::translate(base, glm::vec3(0.0f, 4.12f, garageBackZ - 0.22f));
+	backTopBeam = glm::scale(backTopBeam, glm::vec3(17.0f, 0.24f, 0.30f));
+	drawMesh(boxMesh, shader, view, projection, backTopBeam, beamColor);
+
+	glm::mat4 exitHeader = glm::translate(base, glm::vec3(0.0f, 2.42f, garageBackZ - 0.24f));
+	exitHeader = glm::scale(exitHeader, glm::vec3(5.2f, 0.24f, 0.30f));
+	drawMesh(boxMesh, shader, view, projection, exitHeader, beamColor);
+
+	glm::mat4 sideTopBeam = glm::translate(base, glm::vec3(garageHalfWidth - 0.24f, 4.12f, -0.45f));
+	sideTopBeam = glm::scale(sideTopBeam, glm::vec3(0.30f, 0.24f, 14.9f));
+	drawMesh(boxMesh, shader, view, projection, sideTopBeam, beamColor);
+}
+
+void EngineSimulator::drawWorkshopStand(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
+	const glm::mat4 base(1.0f);
+	const glm::vec4 woodColor(0.72f, 0.66f, 0.54f, 1.0f);
+	const glm::vec4 frameColor(0.18f, 0.20f, 0.20f, 1.0f);
+	const glm::vec4 mountColor(0.42f, 0.44f, 0.42f, 1.0f);
+
+	glm::mat4 top = glm::translate(base, glm::vec3(0.0f, -2.38f, 0.0f));
+	top = glm::scale(top, glm::vec3(8.6f, 0.30f, 4.3f));
+	drawTexturedMesh(boxMesh, shader, view, projection, top, woodColor, woodTexture);
+
+	for (float x : {-3.45f, 3.45f}) {
+		for (float z : {-1.45f, 1.45f}) {
+			glm::mat4 leg = glm::translate(base, glm::vec3(x, -3.72f, z));
+			leg = glm::scale(leg, glm::vec3(0.32f, 2.55f, 0.32f));
+			drawMesh(boxMesh, shader, view, projection, leg, frameColor);
+
+			glm::mat4 foot = glm::translate(base, glm::vec3(x, -5.02f, z));
+			foot = glm::scale(foot, glm::vec3(0.48f, 0.10f, 0.48f));
+			drawMesh(cylinderMesh, shader, view, projection, foot, glm::vec4(0.08f, 0.09f, 0.09f, 1.0f));
+		}
+	}
+
+	for (float z : {-1.45f, 1.45f}) {
+		glm::mat4 longBrace = glm::translate(base, glm::vec3(0.0f, -4.28f, z));
+		longBrace = glm::scale(longBrace, glm::vec3(6.65f, 0.18f, 0.18f));
+		drawMesh(boxMesh, shader, view, projection, longBrace, frameColor);
+	}
+
+	for (float x : {-3.45f, 3.45f}) {
+		glm::mat4 sideBrace = glm::translate(base, glm::vec3(x, -4.28f, 0.0f));
+		sideBrace = glm::scale(sideBrace, glm::vec3(0.18f, 0.18f, 2.75f));
+		drawMesh(boxMesh, shader, view, projection, sideBrace, frameColor);
+	}
+
+	for (float x : {-2.20f, 2.20f}) {
+		for (float z : {-0.46f, 0.46f}) {
+			glm::mat4 rubberPad = glm::translate(base, glm::vec3(x, -2.17f, z));
+			rubberPad = glm::scale(rubberPad, glm::vec3(0.40f, 0.12f, 0.40f));
+			drawMesh(cylinderMesh, shader, view, projection, rubberPad, glm::vec4(0.10f, 0.11f, 0.11f, 1.0f));
+
+			glm::mat4 mount = glm::translate(base, glm::vec3(x, -2.04f, z));
+			mount = glm::scale(mount, glm::vec3(0.30f, 0.18f, 0.30f));
+			drawMesh(cylinderMesh, shader, view, projection, mount, mountColor);
+
+			glm::mat4 bolt = glm::translate(base, glm::vec3(x, -1.91f, z));
+			bolt = glm::scale(bolt, glm::vec3(0.075f, 0.14f, 0.075f));
+			drawMesh(cylinderMesh, shader, view, projection, bolt, glm::vec4(0.22f, 0.23f, 0.22f, 1.0f));
+		}
+	}
+}
+
+void EngineSimulator::drawFuelCanister(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
+	const glm::mat4 base(1.0f);
+	const glm::vec4 canColor(0.62f, 0.10f, 0.075f, 1.0f);
+	const glm::vec4 canEdgeColor(0.34f, 0.055f, 0.045f, 1.0f);
+	const glm::vec4 hoseColor(0.055f, 0.065f, 0.065f, 1.0f);
+	const glm::vec3 canCenter(3.55f, -1.58f, 1.15f);
+
+	const auto alignCylinderBetween = [](const glm::vec3& start, const glm::vec3& end, float radius) {
+		const glm::vec3 direction = end - start;
+		const float length = glm::length(direction);
+		glm::mat4 model = glm::translate(glm::mat4(1.0f), (start + end) * 0.5f);
+		if (length > 0.0001f) {
+			const glm::vec3 up(0.0f, 1.0f, 0.0f);
+			const glm::vec3 target = direction / length;
+			const float dotValue = std::clamp(glm::dot(up, target), -1.0f, 1.0f);
+			const float angle = std::acos(dotValue);
+			const glm::vec3 axis = glm::cross(up, target);
+			if (glm::length(axis) > 0.0001f) {
+				model = glm::rotate(model, angle, glm::normalize(axis));
+			}
+		}
+		return glm::scale(model, glm::vec3(radius, length, radius));
+	};
+	const auto pointOnCurve = [](const glm::vec3& start, const glm::vec3& control, const glm::vec3& end, float t) {
+		const float inverse = 1.0f - t;
+		return inverse * inverse * start + 2.0f * inverse * t * control + t * t * end;
+	};
+
+	glm::mat4 body = glm::translate(base, canCenter);
+	body = glm::scale(body, glm::vec3(1.05f, 1.30f, 0.58f));
+	drawMesh(boxMesh, shader, view, projection, body, canColor);
+
+	for (float y : {-0.42f, 0.0f, 0.42f}) {
+		glm::mat4 rib = glm::translate(base, canCenter + glm::vec3(0.0f, y, -0.31f));
+		rib = glm::scale(rib, glm::vec3(0.84f, 0.075f, 0.055f));
+		drawMesh(boxMesh, shader, view, projection, rib, canEdgeColor);
+	}
+
+	for (float x : {-0.47f, 0.47f}) {
+		glm::mat4 edge = glm::translate(base, canCenter + glm::vec3(x, 0.0f, 0.0f));
+		edge = glm::scale(edge, glm::vec3(0.075f, 1.18f, 0.62f));
+		drawMesh(boxMesh, shader, view, projection, edge, canEdgeColor);
+	}
+
+	const glm::vec3 handleLeft = canCenter + glm::vec3(-0.28f, 0.60f, 0.0f);
+	const glm::vec3 handleRight = canCenter + glm::vec3(0.20f, 0.60f, 0.0f);
+	const glm::vec3 handleTopLeft = handleLeft + glm::vec3(0.0f, 0.35f, 0.0f);
+	const glm::vec3 handleTopRight = handleRight + glm::vec3(0.0f, 0.35f, 0.0f);
+
+	for (const glm::vec3& mountPosition : {handleLeft, handleRight}) {
+		glm::mat4 handleMount = glm::translate(base, mountPosition + glm::vec3(0.0f, 0.035f, 0.0f));
+		handleMount = glm::scale(handleMount, glm::vec3(0.16f, 0.14f, 0.20f));
+		drawMesh(boxMesh, shader, view, projection, handleMount, canEdgeColor);
+	}
+
+	drawMesh(cylinderMesh, shader, view, projection, alignCylinderBetween(handleLeft, handleTopLeft, 0.065f), canEdgeColor);
+	drawMesh(cylinderMesh, shader, view, projection, alignCylinderBetween(handleTopLeft, handleTopRight, 0.065f), canEdgeColor);
+	drawMesh(cylinderMesh, shader, view, projection, alignCylinderBetween(handleTopRight, handleRight, 0.065f), canEdgeColor);
+
+	const glm::vec3 fillerBase = canCenter + glm::vec3(0.39f, 0.61f, -0.10f);
+	const glm::vec3 fillerTop = fillerBase + glm::vec3(0.0f, 0.24f, 0.0f);
+	drawMesh(cylinderMesh, shader, view, projection, alignCylinderBetween(fillerBase, fillerTop, 0.11f), glm::vec4(0.30f, 0.31f, 0.29f, 1.0f));
+
+	glm::mat4 cap = glm::translate(base, fillerTop + glm::vec3(0.0f, 0.035f, 0.0f));
+	cap = glm::scale(cap, glm::vec3(0.145f, 0.07f, 0.145f));
+	drawMesh(cylinderMesh, shader, view, projection, cap, glm::vec4(0.10f, 0.11f, 0.10f, 1.0f));
+
+	const glm::vec3 hoseStart = fillerTop + glm::vec3(0.0f, 0.10f, 0.0f);
+	const glm::vec3 hoseControl(4.15f, 0.75f, -0.35f);
+	const glm::vec3 hoseEnd(2.85f, 1.82f, -0.52f);
+	const int hoseSegments = 18;
+	glm::vec3 previous = hoseStart;
+	for (int segment = 1; segment <= hoseSegments; ++segment) {
+		const float t = static_cast<float>(segment) / static_cast<float>(hoseSegments);
+		const glm::vec3 current = pointOnCurve(hoseStart, hoseControl, hoseEnd, t);
+		drawMesh(
+			cylinderMesh,
+			shader,
+			view,
+			projection,
+			alignCylinderBetween(previous, current, 0.042f),
+			hoseColor
+		);
+		previous = current;
+	}
+
+	for (int marker = 0; marker < 8; ++marker) {
+		const float offset = static_cast<float>(marker) / 8.0f;
+		const float travel = std::fmod(crankAngle / 720.0f * 0.82f + offset, 1.0f);
+		const glm::vec3 position = pointOnCurve(hoseStart, hoseControl, hoseEnd, travel);
+		glm::mat4 fuelMarker = glm::translate(base, position);
+		fuelMarker = glm::scale(fuelMarker, glm::vec3(0.027f, 0.027f, 0.027f));
+		drawMesh(cylinderMesh, shader, view, projection, fuelMarker, glm::vec4(0.95f, 0.64f, 0.10f, 1.0f));
+	}
 }
 
 void EngineSimulator::drawEngineBlockCutaway(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
@@ -747,7 +1001,7 @@ void EngineSimulator::drawManifolds(ShaderProgram* shader, const glm::mat4& view
 	for (int marker = 0; marker < 12; ++marker) {
 		const float offset = static_cast<float>(marker) / 12.0f;
 		const float travel = std::fmod(crankAngle / 720.0f * 0.75f + offset, 1.0f);
-		const glm::vec3 markerPosition = glm::mix(fuelRailStart, fuelRailEnd, travel)
+		const glm::vec3 markerPosition = glm::mix(fuelRailEnd, fuelRailStart, travel)
 			+ glm::vec3(0.0f, -0.035f, 0.0f);
 		glm::mat4 fuelMarker = glm::translate(base, markerPosition);
 		fuelMarker = glm::scale(fuelMarker, glm::vec3(0.045f, 0.022f, 0.035f));
@@ -971,6 +1225,10 @@ void EngineSimulator::drawStatusPanel(ShaderProgram* shader, const glm::mat4& vi
 }
 
 void EngineSimulator::drawMesh(const EngineMesh& mesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model, const glm::vec4& color) const {
+	drawTexturedMesh(mesh, shader, view, projection, model, color, chooseTexture(color));
+}
+
+void EngineSimulator::drawTexturedMesh(const EngineMesh& mesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model, const glm::vec4& color, unsigned int texture) const {
 	shader->use();
 	glUniformMatrix4fv(shader->u("P"), 1, false, glm::value_ptr(projection));
 	glUniformMatrix4fv(shader->u("V"), 1, false, glm::value_ptr(view));
@@ -981,7 +1239,6 @@ void EngineSimulator::drawMesh(const EngineMesh& mesh, ShaderProgram* shader, co
 	glUniform3f(shader->u("pointLightPosView"), 2.2f, 3.2f, 3.2f);
 	glUniform1f(shader->u("shininess"), 48.0f);
 	glUniform1f(shader->u("specularStrength"), 0.42f);
-	const unsigned int texture = chooseTexture(color);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glUniform1i(shader->u("texture0"), 0);

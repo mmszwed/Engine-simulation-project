@@ -10,9 +10,9 @@
 #include "constants.h"
 
 CameraController::CameraController()
-	: yaw(-35.0f * PI / 180.0f),
-	  pitch(24.0f * PI / 180.0f),
-	  distance(12.0f) {
+	: yaw(-145.0f * PI / 180.0f),
+	  pitch(18.0f * PI / 180.0f),
+	  distance(11.8f) {
 }
 
 void CameraController::update(GLFWwindow* window, float deltaTime) {
@@ -36,7 +36,7 @@ void CameraController::update(GLFWwindow* window, float deltaTime) {
 }
 
 glm::mat4 CameraController::getViewMatrix() const {
-	return glm::lookAt(getPosition(), glm::vec3(0.0f, 0.4f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	return glm::lookAt(getPosition(), glm::vec3(0.0f, -0.35f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 glm::vec3 CameraController::getPosition() const {
@@ -51,9 +51,9 @@ glm::vec3 CameraController::getPosition() const {
 void CameraController::setPreset(int preset) {
 	switch (preset) {
 	case 1:
-		yaw = -35.0f * PI / 180.0f;
-		pitch = 24.0f * PI / 180.0f;
-		distance = 12.0f;
+		yaw = -145.0f * PI / 180.0f;
+		pitch = 18.0f * PI / 180.0f;
+		distance = 11.8f;
 		break;
 	case 2:
 		yaw = 90.0f * PI / 180.0f;

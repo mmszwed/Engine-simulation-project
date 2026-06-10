@@ -1,23 +1,72 @@
 # Symulator pracy silnika czterosuwowego R4
 
-Projekt z grafiki komputerowej w C++/OpenGL/GLM. Repozytorium bazuje na paczce laboratoryjnej, ale jest uporzadkowane pod docelowy symulator silnika.
+Interaktywny projekt z grafiki komputerowej przedstawiajacy prace czterosuwowego
+silnika benzynowego R4 w przekroju. Program zostal napisany w C++17 z uzyciem
+OpenGL 3.3 Core, GLFW, GLEW oraz GLM.
+
+Scena pokazuje miedzy innymi tloki, korbowody, wal korbowy, dwa walki rozrzadu,
+zawory, pompowtryskiwacze, lancuch rozrzadu, dolot, wydech i efekty kolejnych
+suwow pracy. Silnik znajduje sie na stanowisku warsztatowym w garazu.
 
 ## Struktura
 
-- `src/` - pliki `.cpp` aplikacji i startera laboratoryjnego.
-- `include/` - naglowki.
-- `shaders/` - shadery GLSL.
-- `textures/` - tekstury uzywane w scenie.
+- `src/` - implementacja aplikacji, silnika, kamery, meshy i shaderow.
+- `include/` - publiczne interfejsy modulow.
+- `shaders/` - shader materialow oraz shader mapy cienia.
+- `textures/` - cztery tekstury faktycznie wykorzystywane w scenie.
 - `third_party/glm/` - lokalna kopia GLM.
 - `docs/` - PRD, plan zadan, zasady projektu i materialy z zajec.
 
-## Aktualny stan
+## Architektura
 
-Starter OpenGL jest zachowany jako punkt wyjscia, ale repo ma juz pierwsze moduly projektu: `CameraController` i `EngineSimulator`. Aktualny plan checkpointow jest w [docs/PLAN_DZIALANIA.md](docs/PLAN_DZIALANIA.md).
+- `main_file.cpp` - tworzenie okna i kontekstu OpenGL, glowna petla oraz dwa
+  przebiegi renderowania.
+- `CameraController` - kamera orbitujaca, zoom i cztery presety widoku.
+- `EngineSimulator` - stan animacji, RPM, gaz, oswietlenie, otoczenie oraz
+  koordynacja wszystkich zespolow silnika.
+- `Cylinder` - logika pojedynczego cylindra: suw, tlok, korbowod, zawory,
+  wtrysk i efekty wewnatrz komory.
+- `EngineMesh` - generowanie i przechowywanie proceduralnych meshy z VAO/VBO.
+- `ShaderProgram` - wczytywanie, kompilacja, linkowanie i obsluga shaderow.
+- `lodepng` - wczytywanie tekstur PNG.
 
-Aktualna scena uzywa shadera Blinn-Phong z dwoma zrodlami swiatla, proceduralnych tekstur materialow oraz proceduralnych meshy silnika.
+Wszystkie modele silnika i otoczenia sa budowane proceduralnie. Renderowanie
+korzysta z `glDrawArrays`, a transformacje modelu, widoku i projekcji sa
+wykonywane przez GLM.
 
-## Sterowanie w aktualnej wersji
+## Mechanika R4
+
+Pelny cykl pracy cylindra trwa 720 stopni obrotu walu:
+
+1. ssanie,
+2. sprezanie,
+3. praca,
+4. wydech.
+
+Tlokami 1 i 4 oraz 2 i 3 steruja wspolne pary wykorbien przesuniete o 180
+stopni. Przesuniecia cyklu cylindrow realizuja typowa kolejnosc zaplonu
+**1-3-4-2**. Walki rozrzadu obracaja sie z polowa predkosci walu korbowego,
+a ruch zaworow, wtrysku, lancucha i efektow przeplywu jest synchronizowany
+z aktualnym katem walu.
+
+## Rendering i oswietlenie
+
+Glowny shader wykorzystuje model Blinn-Phong z teksturowaniem, swiatlem
+kierunkowym oraz dwiema lampami warsztatowymi. Klawisz `L` przelacza lampy
+i ich wplyw na scene.
+
+Dynamiczne cienie sa realizowane przez shadow mapping:
+
+1. scena jest renderowana z pozycji lampy do mapy glebi 2048x2048,
+2. w przebiegu glownym pozycja fragmentu jest porownywana z mapa glebi,
+3. filtrowanie PCF 5x5 wygladza krawedzie cienia,
+4. bias zalezny od normalnej ogranicza efekt shadow acne.
+
+Shader materialow pracuje w przestrzeni widoku. Pozycje i kierunki swiatel
+sa przeliczane macierza kamery, dlatego oswietlenie pozostaje nieruchome
+w swiecie podczas obracania widoku.
+
+## Sterowanie
 
 Program startuje w pauzie, z minimalnym gazem. Nacisnij `SPACE`, zeby rozpoczac animacje.
 
@@ -30,6 +79,15 @@ Program startuje w pauzie, z minimalnym gazem. Nacisnij `SPACE`, zeby rozpoczac 
 - `SPACE` - pauza/wznowienie,
 - `R` - reset animacji, RPM i gazu oraz powrot do pauzy,
 - `ESC` - wyjscie.
+
+## Status testow
+
+- czysty build `mingw32-make clean && mingw32-make` przechodzi bez ostrzezen,
+- aplikacja uruchamia sie bez bledow kompilacji i linkowania shaderow,
+- wszystkie tekstury i mapa cienia sa odnajdywane przy starcie z katalogu repo,
+- sterowanie `A/D`, `W/S`, `Q/E`, `1-4`, strzalki, `L`, `SPACE`, `R` i `ESC`
+  zostalo sprawdzone recznie i dziala poprawnie,
+- kod nie zawiera zakazanych polecen starego OpenGL wymienionych w wymaganiach.
 
 ## Build przez Makefile
 

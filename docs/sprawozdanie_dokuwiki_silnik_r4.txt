@@ -1,0 +1,390 @@
+====== Symulator pracy silnika czterosuwowego R4 ======
+
+**Autorzy:** [IMIE I NAZWISKO, NUMER INDEKSU] \\
+**Data:** 2026-06-10 \\
+**Technologie:** C++17, OpenGL 3.3 Core, GLSL, GLFW, GLEW, GLM, LodePNG
+
+===== Status projektu =====
+
+^ Data ^ Status projektu ^ Uwagi ^
+| 2026-04-01 | Wybor tematu | Interaktywny symulator pracy silnika czterosuwowego R4 |
+| 2026-04-15 | Modele 3D | Proceduralne modele silnika generowane w kodzie |
+| 2026-05-01 | Program cieniujacy | Blinn-Phong, dwa reflektory warsztatowe |
+| 2026-05-15 | Teksturowanie | Tekstury PNG wczytywane przez LodePNG |
+| 2026-05-20 | Oswietlenie | Dwa zrodla swiatla i dynamiczny shadow mapping |
+| 2026-06-10 | Finalizacja | Sterowanie, otoczenie, efekty suwow i dokumentacja |
+
+===== Streszczenie =====
+
+Projekt przedstawia interaktywny symulator pracy czterosuwowego silnika
+spalinowego R4. Model zostal wykonany jako otwarty przekroj, dzieki czemu
+widoczne sa tloki, korbowody, wal korbowy, dwa walki rozrzadu, zawory,
+pompowtryskiwacze, lancuch rozrzadu oraz przeplyw mieszanki i spalin.
+
+Animacja odwzorowuje pelny cykl pracy trwajacy 720 stopni obrotu walu:
+ssanie, sprezanie, prace i wydech. Cztery cylindry pracuja w kolejnosci
+zaplonu 1-3-4-2. Predkosc animacji zalezy od wartosci RPM regulowanej przez
+uzytkownika.
+
+Scena zostala umieszczona w garazu na stanowisku warsztatowym. Zastosowano
+tekstury drewna, betonu, blachy oraz odlewanego aluminium. Oswietlenie
+wykorzystuje model Blinn-Phonga, dwie lampy warsztatowe i dynamiczne cienie
+generowane metoda shadow mapping. Uzytkownik moze sterowac kamera, gazem,
+pauza, resetem oraz wlaczaniem lamp.
+
+**Slowa kluczowe:** Grafika 3D, C++, OpenGL, GLSL, silnik R4, silnik
+czterosuwowy, animacja, Blinn-Phong, teksturowanie, shadow mapping.
+
+===== Slownik pojec =====
+
+^ Id ^ PL ^ EN ^ Opis / akronim ^
+| Q178570 | OpenGL | OpenGL | API do sprzetowego renderowania grafiki 2D i 3D |
+| Q779819 | OpenGL Shading Language | OpenGL Shading Language | GLSL - jezyk programow wykonywanych przez GPU |
+| Q11860238 | GLFW | GLFW | Tworzenie okna, kontekstu OpenGL i obsluga klawiatury |
+| Q752176 | Teksturowanie | Texture mapping | Nakladanie obrazow PNG na powierzchnie modeli |
+| Q1478122 | Mapowanie cieni | Shadow mapping | Generowanie cieni przez porownanie z mapa glebi |
+| Q191801 | Silnik czterosuwowy | Four-stroke engine | Silnik realizujacy ssanie, sprezanie, prace i wydech |
+| Q12757 | Silnik spalinowy | Internal combustion engine | Silnik zamieniajacy energie spalania na ruch mechaniczny |
+| Q49718 | Wal korbowy | Crankshaft | Zamienia ruch posuwisty tlokow na ruch obrotowy |
+| Q13707 | Walek rozrzadu | Camshaft | Steruje otwieraniem i zamykaniem zaworow |
+| Q45227 | Tlok | Piston | Ruchomy element cylindra przekazujacy sile na korbowod |
+
+===== Techniki wizualizacji wykorzystane w projekcie =====
+
+==== Modele 3D ====
+
+Wszystkie modele zostaly utworzone proceduralnie w kodzie projektu.
+Generator ''EngineMesh'' tworzy wierzcholki, normalne i wspolrzedne UV,
+a nastepnie przesyla dane do buforow VAO i VBO. Scena nie wykorzystuje
+gotowych procedur rysujacych ani starego OpenGL.
+
+Podstawowe generowane bryly:
+
+  * prostopadloscian,
+  * cylinder o regulowanej liczbie segmentow,
+  * polcylinder wykorzystywany w przekroju,
+  * krzywka walka rozrzadu,
+  * kolo zebate,
+  * pierscien,
+  * plyta zaworowa z otworami,
+  * otwarty kolektor dolotowy i wydechowy.
+
+Z tych elementow zbudowano kompletny model silnika oraz otoczenie garazu.
+Do rysowania wykorzystywane jest ''glDrawArrays''.
+
+==== Teksturowanie ====
+
+Obrazy PNG sa dekodowane biblioteka LodePNG, a nastepnie przesylane do GPU
+przez ''glTexImage2D''. Generowane sa mipmapy, a filtrowanie wykorzystuje
+''GL_LINEAR'' oraz ''GL_LINEAR_MIPMAP_LINEAR''.
+
+W projekcie wykorzystywane sa cztery tekstury:
+
+^ Plik ^ Zastosowanie ^
+| ''wood_planks_dirt_diff_2k.png'' | blat stanowiska warsztatowego |
+| ''painted_metal_shutter_disp_4k.png'' | metalowe sciany garazu |
+| ''hangar_concrete_floor_disp_4k.png'' | betonowa podloga |
+| ''worn_mossy_plasterwall_disp_4k.png'' | odlewana obudowa silnika |
+
+Dodatkowo metal, ciemny metal i guma otrzymuja proceduralne tekstury
+generowane w pamieci programu.
+
+==== Oswietlenie ====
+
+Glowny fragment shader implementuje model Blinn-Phonga:
+
+  * skladowa ambient zapewnia podstawowa widocznosc sceny,
+  * skladowa diffuse zalezy od kata pomiedzy normalna a kierunkiem swiatla,
+  * skladowa specular tworzy odbicia na metalowych elementach,
+  * tlumienie zmniejsza intensywnosc swiatla wraz z odlegloscia,
+  * funkcja ''smoothstep'' tworzy miekka krawedz stozka reflektora.
+
+Scena posiada swiatlo kierunkowe oraz dwie lampy warsztatowe. Jedna znajduje
+sie na scianie garazu, a druga stoi po prawej stronie stanowiska i jest
+skierowana na silnik. Klawisz ''L'' wlacza lub wylacza lampy.
+
+Pozycje i kierunki swiatel sa przeksztalcane macierza widoku. Dzieki temu
+oswietlenie pozostaje nieruchome w swiecie podczas obracania kamery.
+
+==== Shadow mapping ====
+
+Dynamiczne cienie sa generowane w dwoch przebiegach:
+
+  - scena jest renderowana z pozycji lampy do tekstury glebi 2048x2048,
+  - podczas glownego przebiegu pozycja fragmentu jest przeksztalcana do
+    przestrzeni lampy,
+  - aktualna glebia jest porownywana z wartoscia zapisana w mapie cienia,
+  - filtrowanie PCF 5x5 wygladza krawedzie cienia,
+  - bias zalezny od normalnej ogranicza efekt shadow acne.
+
+Do przebiegu glebi wykorzystywany jest osobny, uproszczony program
+''v_shadow.glsl'' / ''f_shadow.glsl''.
+
+==== Efekty wewnatrz cylindra ====
+
+Efekty zostaly zsynchronizowane z faza kazdego cylindra:
+
+  * niebieskie czasteczki pokazuja zasysanie mieszanki,
+  * podczas sprezania chmura zmniejsza swoja objetosc,
+  * poczatek suwu pracy sygnalizuje krotki zolty rozblysk,
+  * brazowo-pomaranczowe znaczniki pokazuja przeplyw spalin.
+
+Efekty sa niewielkie i nie zaslaniaja tloka ani pracy zaworow.
+
+==== Interakcja i kamera ====
+
+Kamera orbituje wokol silnika i jest wyliczana przez ''glm::lookAt''.
+Uzytkownik moze zmieniac kat poziomy, pionowy, odleglosc oraz wybierac
+cztery przygotowane presety.
+
+^ Klawisz ^ Dzialanie ^
+| A / D | obrot kamery w lewo i prawo |
+| W / S | obrot kamery w gore i dol |
+| Q / E | oddalenie i przyblizenie |
+| 1 / 2 / 3 / 4 | presety kamery |
+| strzalka gora / dol | zwiekszenie lub zmniejszenie gazu |
+| SPACE | pauza lub wznowienie animacji |
+| R | reset animacji, RPM i gazu |
+| L | wlaczenie lub wylaczenie lamp i cieni |
+| ESC | zamkniecie programu |
+
+===== Wykorzystanie gotowych bibliotek modeli =====
+
+Projekt nie wykorzystuje gotowych modeli 3D ani bibliotek modeli. Cala
+geometria silnika, lamp, stolu, panelu, kanistra i garazu jest generowana
+przez kod autorow. Zewnetrzne biblioteki sluza jedynie do obslugi OpenGL,
+matematyki i dekodowania tekstur.
+
+===== Opis modeli =====
+
+^ Lp. ^ Model ^ Opis ^
+| 1 | Blok silnika | Otwarty przekroj obudowy, miski olejowej i mocowan |
+| 2 | Cylinder | Tuleja w przekroju, komora spalania i plyta zaworowa |
+| 3 | Tlok | Denko, plaszcz, pierscienie oraz polaczenie z korbowodem |
+| 4 | Wal korbowy | Czopy glowne, czopy korbowe, ramiona i przeciwwagi |
+| 5 | Korbowod | Sztywne polaczenie punktu tloka z czopem walu |
+| 6 | Uklad rozrzadu | Dwa walki, krzywki, kola zebate i lancuch |
+| 7 | Zawory | Cztery zawory na cylinder, prowadnice, gniazda i sprezyny |
+| 8 | Pompowtryskiwacz | Centralny wtrysk z popychaczem i doprowadzeniem paliwa |
+| 9 | Dolot i wydech | Otwarte kolektory z animowanym kierunkiem przeplywu |
+| 10 | Otoczenie | Garaz, stol, lampy, panel sterowania i kanister paliwa |
+
+===== Animacje =====
+
+==== Model matematyczny tloka i korbowodu ====
+
+Kat walu jest aktualizowany na podstawie RPM i czasu klatki:
+
+  omega = (RPM / 60) * 360 stopni/s
+  crankAngle = (crankAngle + omega * deltaTime) mod 720
+
+Ruch tloka nie jest zwykla sinusoida. Uwzglednia promien wykorbienia ''r''
+oraz dlugosc korbowodu ''l'':
+
+  crankY = mainY + r * sin(theta)
+  crankZ = r * cos(theta)
+  pistonY = crankY + sqrt(l^2 - crankZ^2)
+
+Korbowod jest ustawiany pomiedzy aktualnym punktem sworznia tloka i czopem
+walu. Macierz modelu sklada sie z translacji do srodka odcinka, rotacji osi
+cylindra do kierunku odcinka i skalowania do jego dlugosci.
+
+==== Cykl 720 stopni i kolejnosc zaplonu ====
+
+^ Zakres fazy ^ Suw ^ Stan zaworow ^
+| 0-180 | ssanie | otwarte zawory dolotowe |
+| 180-360 | sprezanie | wszystkie zawory zamkniete |
+| 360-540 | praca | wszystkie zawory zamkniete |
+| 540-720 | wydech | otwarte zawory wydechowe |
+
+Przesuniecia faz cylindrow realizuja kolejnosc zaplonu **1-3-4-2**.
+Tloki 1 i 4 poruszaja sie wspolnie, a tloki 2 i 3 znajduja sie wzgledem
+nich po przeciwnej stronie obrotu walu.
+
+Walki rozrzadu obracaja sie z polowa predkosci walu:
+
+  camAngle = crankAngle * 0.5
+
+Krzywki, zawory, popychacze, sprezyny, wtrysk oraz lancuch sa wyliczane na
+podstawie tego samego kata, dzieki czemu mechanizm pozostaje zsynchronizowany.
+
+==== Sterowanie RPM ====
+
+Gaz ma wartosc od 0 do 1 i wyznacza docelowe RPM w zakresie demonstracyjnym
+120-1200. Aktualne obroty dochodza do wartosci docelowej plynnie:
+
+  targetRpm = minRpm + throttle * (maxRpm - minRpm)
+  rpm += (targetRpm - rpm) * response * deltaTime
+
+===== Kluczowe fragmenty kodu =====
+
+==== Aktualizacja animacji ====
+
+<code cpp>
+const float minDemoRpm = 120.0f;
+const float maxDemoRpm = 1200.0f;
+targetRpm = minDemoRpm + throttle * (maxDemoRpm - minDemoRpm);
+rpm += (targetRpm - rpm) * 2.2f * deltaTime;
+
+if (!paused) {
+    const float animationScale = 0.35f;
+    const float degreesPerSecond =
+        (rpm / 60.0f) * 360.0f * animationScale;
+    crankAngle = std::fmod(
+        crankAngle + degreesPerSecond * deltaTime,
+        720.0f
+    );
+}
+</code>
+
+==== Wyznaczenie suwu cylindra ====
+
+<code cpp>
+StrokeType Cylinder::getStroke(float crankAngle) const {
+    const float p = phase(crankAngle);
+    if (p < 180.0f) return StrokeType::Intake;
+    if (p < 360.0f) return StrokeType::Compression;
+    if (p < 540.0f) return StrokeType::Power;
+    return StrokeType::Exhaust;
+}
+</code>
+
+==== Dwupasowe renderowanie cieni ====
+
+<code cpp>
+glViewport(0, 0, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+glBindFramebuffer(GL_FRAMEBUFFER, shadowFramebuffer);
+glClear(GL_DEPTH_BUFFER_BIT);
+engine.drawShadow(spShadow, lightView, lightProjection);
+glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+glViewport(0, 0, width, height);
+glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+engine.draw(spEngine, view, projection);
+</code>
+
+==== Transformacja wierzcholka ====
+
+<code glsl>
+vec4 viewPos = V * M * vertex;
+mat3 normalMatrix = transpose(inverse(mat3(V * M)));
+
+fragPosView = viewPos.xyz;
+normalView = normalize(normalMatrix * normal.xyz);
+fragPosLightSpace = lightSpaceMatrix * M * vertex;
+gl_Position = P * viewPos;
+</code>
+
+===== Tryb demo =====
+
+Program uruchamia sie w pauzie i z minimalnym gazem. Proponowana kolejnosc
+prezentacji:
+
+  - uruchomic animacje klawiszem ''SPACE'',
+  - pokazac wolne obroty i ruch tlokow,
+  - wlaczyc lampy klawiszem ''L'' i pokazac dynamiczne cienie,
+  - uzyc presetow ''1-4'' do pokazania rozrzadu, przekroju i walu,
+  - zwiekszyc gaz strzalka w gore,
+  - pokazac szybsza prace zaworow, lancucha, wtrysku i efektow przeplywu,
+  - zatrzymac animacje i omowic kolejnosc zaplonu 1-3-4-2,
+  - wykonac reset klawiszem ''R''.
+
+===== Pomiary i testy =====
+
+Animacja wykorzystuje ''deltaTime'' obliczany przez ''glfwGetTime'', dlatego
+jej predkosc nie zalezy bezposrednio od liczby klatek na sekunde. Synchronizacja
+pionowa zostala wlaczona przez ''glfwSwapInterval(1)''.
+
+Przeprowadzono nastepujace testy:
+
+  * czysty build na Windows przez ''mingw32-make clean'' i ''mingw32-make'',
+  * uruchomienie wszystkich programow shaderow bez bledow kompilacji,
+  * sprawdzenie obecnosci tekstur i mapy cienia,
+  * reczny test wszystkich klawiszy sterowania,
+  * skan kodu pod katem zakazanych polecen starego OpenGL,
+  * obserwacja synchronizacji tlokow, zaworow, wtrysku i lancucha.
+
+===== Efekty wizualizacji =====
+
+W tym miejscu nalezy umiescic zrzuty ekranu oraz krotki plik GIF lub MP4
+przedstawiajacy prace silnika.
+
+  * widok calego stanowiska:
+    ''{{:gk:silnik_r4_stanowisko.png?900|Stanowisko z silnikiem R4}}''
+  * przekroj cylindrow:
+    ''{{:gk:silnik_r4_przekroj.png?900|Przekroj cylindrow}}''
+  * rozrzad i lancuch:
+    ''{{:gk:silnik_r4_rozrzad.png?900|Uklad rozrzadu}}''
+  * shadow mapping:
+    ''{{:gk:silnik_r4_cienie.png?900|Dynamiczne cienie}}''
+  * animacja:
+    ''{{:gk:silnik_r4_demo.mp4|Demonstracja projektu}}''
+
+Nazwy plikow mozna zmienic po przeslaniu mediow na serwer DokuWiki.
+
+===== Podsumowanie =====
+
+Projekt zrealizowal zalozenie czytelnej, interaktywnej wizualizacji pracy
+czterosuwowego silnika R4. Otwarty przekroj pozwala jednoczesnie obserwowac
+mechanizm korbowy, rozrzad, zawory, wtrysk oraz kolektory. Zastosowanie
+proceduralnych modeli umozliwilo dopasowanie geometrii do animacji bez
+korzystania z gotowych modeli.
+
+Program spelnia wymagania dotyczace nowoczesnego OpenGL, interakcji,
+niezaleznie animowanych obiektow, wielu tekstur, przynajmniej dwoch zrodel
+swiatla i widocznego cieniowania. Dynamiczny shadow mapping oraz model
+Blinn-Phonga poprawiaja czytelnosc metalowych czesci i osadzaja silnik
+w otoczeniu warsztatowym.
+
+===== Propozycje dalszego rozwoju =====
+
+  * osobne parametry materialow dla aluminium, stali, gumy i drewna,
+  * normal mapping lub PBR dla obudowy silnika,
+  * bardziej zaawansowane czasteczki spalin z przezroczystoscia,
+  * dzwiek silnika zalezny od RPM,
+  * pomiar i wyswietlanie FPS oraz czasu renderowania,
+  * zapis zrzutow ekranu i automatyczne generowanie animacji demonstracyjnej,
+  * dodatkowa mapa cienia dla lampy sciennej.
+
+===== Narzedzia =====
+
+  * C++17 - logika programu i obsluga sceny,
+  * OpenGL 3.3 Core - renderowanie,
+  * GLSL - programy cieniujace,
+  * GLFW - okno, kontekst i wejscie z klawiatury,
+  * GLEW - dostep do funkcji OpenGL,
+  * GLM - wektory, macierze i transformacje,
+  * LodePNG - dekodowanie tekstur PNG,
+  * Make / MinGW-w64 - budowanie na Windows,
+  * Homebrew / Make - budowanie na macOS,
+  * Git - kontrola wersji.
+
+===== Literatura =====
+
+  - Janusz Ganczarski, //OpenGL. Podstawy programowania grafiki 3D//,
+    Helion, Gliwice, 2015.
+  - Muhammad Mobeen Movania, //OpenGL. Receptury dla programisty//,
+    Helion, Gliwice, 2015.
+  - Joey de Vries, //LearnOpenGL - Advanced Lighting: Shadows//:
+    https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
+  - Khronos Group, //OpenGL Reference Pages//:
+    https://registry.khronos.org/OpenGL-Refpages/gl4/
+  - Dokumentacja GLFW: https://www.glfw.org/documentation.html
+  - Dokumentacja GLM: https://github.com/g-truc/glm
+  - Four-stroke engine:
+    https://en.wikipedia.org/wiki/Four-stroke_engine
+  - Crankshaft:
+    https://en.wikipedia.org/wiki/Crankshaft
+  - Camshaft:
+    https://en.wikipedia.org/wiki/Camshaft
+
+===== Pliki projektu =====
+
+Pelne kody zrodlowe, shadery, tekstury i dokumentacja powinny zostac
+udostepnione w katalogu w Chmurze PP lub systemie Box PIONIER. Nazwe katalogu
+nalezy uzupelnic zgodnie z wymaganiem prowadzacego:
+
+  ''BIO_NUMER_INDEKSU_PP''
+
+W udostepnionym katalogu nalezy umiescic plik tekstowy zawierajacy link do
+artykulu projektu na DokuWiki oraz numer indeksu autora.

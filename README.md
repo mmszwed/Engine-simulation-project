@@ -135,3 +135,25 @@ CMake zostaje jako alternatywa dla Visual Studio 2019+:
 cmake -S . -B build
 cmake --build build
 ```
+
+## Dokumentacja Doxygen
+
+Repozytorium zawiera plik `Doxyfile` oraz komentarze dokumentacyjne klas,
+metod i typow projektu. Po zainstalowaniu Doxygen i Graphviz dokumentacje
+HTML mozna wygenerowac poleceniem:
+
+```sh
+mingw32-make docs
+```
+
+Na macOS lub Linuxie mozna uzyc:
+
+```sh
+make docs
+```
+
+Strona glowna zostanie utworzona jako:
+
+```text
+docs/doxygen/html/index.html
+```

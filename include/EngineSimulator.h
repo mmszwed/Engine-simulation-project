@@ -10,13 +10,36 @@
 struct GLFWwindow;
 class ShaderProgram;
 
+/**
+ * @brief Coordinates the complete R4 engine simulation and workshop scene.
+ *
+ * EngineSimulator owns the animation state, four cylinders, procedural meshes,
+ * textures, engine assemblies, garage environment and interactive lighting.
+ * Cylinders use phase offsets that produce the 1-3-4-2 firing order.
+ */
 class EngineSimulator {
 public:
+	/** @brief Creates a paused engine at idle RPM and initializes R4 phases. */
 	EngineSimulator();
 
+	/**
+	 * @brief Updates input, throttle, RPM, pause state and crank angle.
+	 * @param window Active GLFW window.
+	 * @param deltaTime Time since the previous frame in seconds.
+	 */
 	void update(GLFWwindow* window, float deltaTime);
+
+	/** @brief Draws the lit workshop scene using the main material shader. */
 	void draw(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection);
+
+	/**
+	 * @brief Draws shadow-casting engine geometry into the depth framebuffer.
+	 * @param lightView View matrix from the work lamp.
+	 * @param lightProjection Perspective projection of the work lamp.
+	 */
 	void drawShadow(ShaderProgram* shader, const glm::mat4& lightView, const glm::mat4& lightProjection);
+
+	/** @brief Releases all meshes and textures owned by the simulator. */
 	void destroy();
 
 private:

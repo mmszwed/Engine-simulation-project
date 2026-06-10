@@ -6,18 +6,47 @@
 class EngineMesh;
 class ShaderProgram;
 
+/** @brief Four strokes of a spark-ignition engine cycle. */
 enum class StrokeType {
+	/** Intake valves open and the piston draws mixture into the cylinder. */
 	Intake,
+	/** All valves are closed while the mixture is compressed. */
 	Compression,
+	/** Combustion forces the piston down with all valves closed. */
 	Power,
+	/** Exhaust valves open and combustion products leave the cylinder. */
 	Exhaust
 };
 
+/**
+ * @brief Animated representation of one cylinder in the inline-four engine.
+ *
+ * A cylinder owns its phase offsets and calculates piston, connecting rod,
+ * valve, injector and combustion-effect positions from the shared crank angle.
+ */
 class Cylinder {
 public:
+	/**
+	 * @param index Cylinder number used by the engine assembly.
+	 * @param xPosition Position along the inline engine block.
+	 * @param crankOffset Mechanical crank-pin offset in degrees.
+	 * @param cycleOffset Four-stroke cycle offset in degrees.
+	 */
 	Cylinder(int index, float xPosition, float crankOffset, float cycleOffset);
 
+	/**
+	 * @brief Draws all visible and animated parts of this cylinder.
+	 *
+	 * @param crankAngle Shared crankshaft angle in the 0-720 degree cycle.
+	 * @param lampOn Enables contribution from the workshop spot lights.
+	 */
 	void draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, const EngineMesh& halfCylinderMesh, const EngineMesh& valvePlateMesh, const EngineMesh& valveSeatMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float crankAngle, unsigned int metalTexture, unsigned int darkMetalTexture, unsigned int rubberTexture, bool lampOn) const;
+
+	/**
+	 * @brief Determines the current four-stroke phase.
+	 * @param crankAngle Shared crankshaft angle.
+	 * @return Intake, compression, power or exhaust stroke.
+	 */
 	StrokeType getStroke(float crankAngle) const;
 
 private:

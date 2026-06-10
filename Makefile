@@ -37,9 +37,12 @@ endif
 $(APP_NAME): $(SRC) $(HEADERS)
 	$(CXX) -o $(APP_NAME) $(SRC) $(CXXFLAGS) $(LDFLAGS) $(LIBS)
 
-.PHONY: clean run
+.PHONY: clean run docs
 run: $(APP_NAME)
 	./$(APP_NAME)
+
+docs:
+	doxygen Doxyfile
 
 clean:
 	$(RM) $(APP) $(APP).exe

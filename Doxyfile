@@ -1,0 +1,86 @@
+PROJECT_NAME           = "Symulator silnika czterosuwowego R4"
+PROJECT_BRIEF          = "Interaktywny przekroj silnika R4 w OpenGL"
+PROJECT_NUMBER         = "1.0"
+
+OUTPUT_DIRECTORY       = docs/doxygen
+CREATE_SUBDIRS         = NO
+ALLOW_UNICODE_NAMES    = NO
+OUTPUT_LANGUAGE        = Polish
+
+INPUT                  = include \
+                         src \
+                         shaders \
+                         docs/doxygen_mainpage.md \
+                         README.md
+FILE_PATTERNS          = *.h \
+                         *.cpp \
+                         *.glsl \
+                         *.md
+RECURSIVE              = NO
+EXCLUDE                = src/lodepng.cpp \
+                         include/lodepng.h
+
+USE_MDFILE_AS_MAINPAGE = docs/doxygen_mainpage.md
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+HIDE_FRIEND_COMPOUNDS  = YES
+
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_FILE_EXTENSION    = .html
+HTML_COLORSTYLE_HUE    = 205
+HTML_COLORSTYLE_SAT    = 70
+HTML_COLORSTYLE_GAMMA  = 95
+GENERATE_TREEVIEW      = YES
+FULL_SIDEBAR           = YES
+DISABLE_INDEX          = NO
+
+GENERATE_LATEX         = NO
+GENERATE_XML           = NO
+GENERATE_MAN           = NO
+
+QUIET                  = NO
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+WARN_AS_ERROR          = NO
+
+HAVE_DOT               = YES
+DOT_NUM_THREADS        = 0
+CLASS_DIAGRAMS         = YES
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+DIRECTORY_GRAPH        = YES
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+
+TAB_SIZE               = 4
+OPTIMIZE_OUTPUT_FOR_C  = NO
+OPTIMIZE_OUTPUT_JAVA   = NO
+CPP_CLI_SUPPORT        = NO
+BUILTIN_STL_SUPPORT    = YES
+EXTENSION_MAPPING      = glsl=C++
+
+PREDEFINED             = GLM_FORCE_RADIANS
+MACRO_EXPANSION        = NO
+SEARCH_INCLUDES        = YES
+INCLUDE_PATH           = include \
+                         third_party
+

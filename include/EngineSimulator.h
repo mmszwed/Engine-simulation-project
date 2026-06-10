@@ -16,6 +16,7 @@ public:
 
 	void update(GLFWwindow* window, float deltaTime);
 	void draw(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection);
+	void drawShadow(ShaderProgram* shader, const glm::mat4& lightView, const glm::mat4& lightProjection);
 	void destroy();
 
 private:
@@ -26,6 +27,8 @@ private:
 	bool paused;
 	bool spaceWasPressed;
 	bool resetWasPressed;
+	bool lampOn;
+	bool lampWasPressed;
 	bool meshesReady;
 
 	EngineMesh boxMesh;
@@ -54,6 +57,8 @@ private:
 	unsigned int loadPngTexture(const char* path) const;
 	unsigned int chooseTexture(const glm::vec4& color) const;
 	void drawGarageShell(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
+	void drawWallLamp(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
+	void drawWorkLamp(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
 	void drawWorkshopStand(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
 	void drawFuelCanister(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
 	void drawEngineBlockCutaway(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
@@ -63,6 +68,7 @@ private:
 	void drawManifolds(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
 	void drawStatusPanel(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const;
 	void drawMesh(const EngineMesh& mesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model, const glm::vec4& color) const;
+	void drawUnlitMesh(const EngineMesh& mesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model, const glm::vec4& color) const;
 	void drawTexturedMesh(const EngineMesh& mesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model, const glm::vec4& color, unsigned int texture) const;
 };
 

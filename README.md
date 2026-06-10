@@ -21,10 +21,12 @@ Aktualna scena uzywa shadera Blinn-Phong z dwoma zrodlami swiatla, proceduralnyc
 
 Program startuje w pauzie, z minimalnym gazem. Nacisnij `SPACE`, zeby rozpoczac animacje.
 
-- `A/D` - obrot kamery,
+- `A/D` - obrot kamery w lewo/prawo,
+- `W/S` - obrot kamery w gore/dol,
 - `Q/E` - oddalenie/przyblizenie,
 - `1/2/3/4` - presety kamery,
-- `W/S` - gaz,
+- `strzalka gora/dol` - zwiekszenie/zmniejszenie gazu,
+- `L` - wlaczenie/wylaczenie lamp warsztatowych i dynamicznych cieni,
 - `SPACE` - pauza/wznowienie,
 - `R` - reset animacji, RPM i gazu oraz powrot do pauzy,
 - `ESC` - wyjscie.

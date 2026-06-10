@@ -19,13 +19,15 @@ Cylinder::Cylinder(int index, float xPosition, float crankOffset, float cycleOff
 	  cycleOffset(cycleOffset),
 	  currentMetalTexture(0),
 	  currentDarkMetalTexture(0),
-	  currentRubberTexture(0) {
+	  currentRubberTexture(0),
+	  currentLampOn(false) {
 }
 
-void Cylinder::draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, const EngineMesh& halfCylinderMesh, const EngineMesh& valvePlateMesh, const EngineMesh& valveSeatMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float crankAngle, unsigned int metalTexture, unsigned int darkMetalTexture, unsigned int rubberTexture) const {
+void Cylinder::draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, const EngineMesh& halfCylinderMesh, const EngineMesh& valvePlateMesh, const EngineMesh& valveSeatMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float crankAngle, unsigned int metalTexture, unsigned int darkMetalTexture, unsigned int rubberTexture, bool lampOn) const {
 	currentMetalTexture = metalTexture;
 	currentDarkMetalTexture = darkMetalTexture;
 	currentRubberTexture = rubberTexture;
+	currentLampOn = lampOn;
 
 	const float currentPhase = phase(crankAngle);
 	const StrokeType stroke = getStroke(crankAngle);
@@ -619,11 +621,20 @@ void Cylinder::drawMesh(const EngineMesh& mesh, ShaderProgram* shader, const glm
 	glUniformMatrix4fv(shader->u("V"), 1, false, glm::value_ptr(view));
 	glUniformMatrix4fv(shader->u("M"), 1, false, glm::value_ptr(model));
 	glUniform4fv(shader->u("color"), 1, glm::value_ptr(color));
-	glUniform4f(shader->u("lightDir"), 0.0f, 0.0f, 1.0f, 0.0f);
-	glUniform3f(shader->u("dirLightDirView"), -0.35f, -0.85f, -0.35f);
-	glUniform3f(shader->u("pointLightPosView"), 2.2f, 3.2f, 3.2f);
+	const glm::vec3 dirLightView = glm::normalize(glm::mat3(view) * glm::vec3(-0.35f, -0.85f, -0.35f));
+	const glm::vec3 lampPositionView = glm::vec3(view * glm::vec4(7.72f, 2.45f, 0.15f, 1.0f));
+	const glm::vec3 lampDirectionView = glm::normalize(glm::mat3(view) * glm::normalize(glm::vec3(-7.72f, -2.25f, -0.15f)));
+	const glm::vec3 workLightPositionView = glm::vec3(view * glm::vec4(5.18f, 0.85f, -1.78f, 1.0f));
+	const glm::vec3 workLightDirectionView = glm::normalize(glm::mat3(view) * glm::normalize(glm::vec3(-5.18f, -0.95f, 1.78f)));
+	glUniform3fv(shader->u("dirLightDirView"), 1, glm::value_ptr(dirLightView));
+	glUniform3fv(shader->u("pointLightPosView"), 1, glm::value_ptr(lampPositionView));
+	glUniform3fv(shader->u("spotDirectionView"), 1, glm::value_ptr(lampDirectionView));
+	glUniform3fv(shader->u("workLightPosView"), 1, glm::value_ptr(workLightPositionView));
+	glUniform3fv(shader->u("workSpotDirectionView"), 1, glm::value_ptr(workLightDirectionView));
+	glUniform1f(shader->u("lampIntensity"), currentLampOn ? 1.0f : 0.0f);
 	glUniform1f(shader->u("shininess"), 48.0f);
 	glUniform1f(shader->u("specularStrength"), 0.42f);
+	glUniform1i(shader->u("unlit"), 0);
 	const unsigned int texture = chooseTexture(color);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);

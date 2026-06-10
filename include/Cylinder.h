@@ -17,7 +17,7 @@ class Cylinder {
 public:
 	Cylinder(int index, float xPosition, float crankOffset, float cycleOffset);
 
-	void draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, const EngineMesh& halfCylinderMesh, const EngineMesh& valvePlateMesh, const EngineMesh& valveSeatMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float crankAngle, unsigned int metalTexture, unsigned int darkMetalTexture, unsigned int rubberTexture) const;
+	void draw(const EngineMesh& boxMesh, const EngineMesh& cylinderMesh, const EngineMesh& halfCylinderMesh, const EngineMesh& valvePlateMesh, const EngineMesh& valveSeatMesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, float crankAngle, unsigned int metalTexture, unsigned int darkMetalTexture, unsigned int rubberTexture, bool lampOn) const;
 	StrokeType getStroke(float crankAngle) const;
 
 private:
@@ -28,6 +28,7 @@ private:
 	mutable unsigned int currentMetalTexture;
 	mutable unsigned int currentDarkMetalTexture;
 	mutable unsigned int currentRubberTexture;
+	mutable bool currentLampOn;
 
 	float phase(float crankAngle) const;
 	float pistonPinHeight(float crankRadians) const;

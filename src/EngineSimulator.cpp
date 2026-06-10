@@ -22,6 +22,8 @@ EngineSimulator::EngineSimulator()
 	  paused(true),
 	  spaceWasPressed(false),
 	  resetWasPressed(false),
+	  lampOn(false),
+	  lampWasPressed(false),
 	  meshesReady(false),
 	  metalTexture(0),
 	  darkMetalTexture(0),
@@ -58,6 +60,12 @@ void EngineSimulator::update(GLFWwindow* window, float deltaTime) {
 	}
 	resetWasPressed = resetPressed;
 
+	const bool lampPressed = glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS;
+	if (lampPressed && !lampWasPressed) {
+		lampOn = !lampOn;
+	}
+	lampWasPressed = lampPressed;
+
 	throttle = std::clamp(throttle, 0.0f, 1.0f);
 
 	const float minDemoRpm = 120.0f;
@@ -77,17 +85,47 @@ void EngineSimulator::draw(ShaderProgram* shader, const glm::mat4& view, const g
 
 	drawGarageShell(shader, view, projection);
 	drawWorkshopStand(shader, view, projection);
+	drawWallLamp(shader, view, projection);
+	drawWorkLamp(shader, view, projection);
 	drawFuelCanister(shader, view, projection);
 	drawEngineBlockCutaway(shader, view, projection);
 
 	for (const Cylinder& cylinder : cylinders) {
-		cylinder.draw(boxMesh, cylinderMesh, halfCylinderMesh, valvePlateMesh, valveSeatMesh, shader, view, projection, crankAngle, metalTexture, darkMetalTexture, rubberTexture);
+		cylinder.draw(boxMesh, cylinderMesh, halfCylinderMesh, valvePlateMesh, valveSeatMesh, shader, view, projection, crankAngle, metalTexture, darkMetalTexture, rubberTexture, lampOn);
 	}
 
 	drawCrankshaftAssembly(shader, view, projection);
 	drawValveTrain(shader, view, projection);
 	drawManifolds(shader, view, projection);
 	drawStatusPanel(shader, view, projection);
+}
+
+void EngineSimulator::drawShadow(ShaderProgram* shader, const glm::mat4& lightView, const glm::mat4& lightProjection) {
+	initMeshes();
+
+	drawFuelCanister(shader, lightView, lightProjection);
+	drawEngineBlockCutaway(shader, lightView, lightProjection);
+	for (const Cylinder& cylinder : cylinders) {
+		cylinder.draw(
+			boxMesh,
+			cylinderMesh,
+			halfCylinderMesh,
+			valvePlateMesh,
+			valveSeatMesh,
+			shader,
+			lightView,
+			lightProjection,
+			crankAngle,
+			metalTexture,
+			darkMetalTexture,
+			rubberTexture,
+			false
+		);
+	}
+	drawCrankshaftAssembly(shader, lightView, lightProjection);
+	drawValveTrain(shader, lightView, lightProjection);
+	drawManifolds(shader, lightView, lightProjection);
+	drawStatusPanel(shader, lightView, lightProjection);
 }
 
 void EngineSimulator::destroy() {
@@ -304,6 +342,158 @@ void EngineSimulator::drawGarageShell(ShaderProgram* shader, const glm::mat4& vi
 	glm::mat4 sideTopBeam = glm::translate(base, glm::vec3(garageHalfWidth - 0.24f, 4.12f, -0.45f));
 	sideTopBeam = glm::scale(sideTopBeam, glm::vec3(0.30f, 0.24f, 14.9f));
 	drawMesh(boxMesh, shader, view, projection, sideTopBeam, beamColor);
+}
+
+void EngineSimulator::drawWallLamp(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
+	const glm::mat4 base(1.0f);
+	const glm::vec4 housingColor(0.18f, 0.20f, 0.20f, 1.0f);
+
+	glm::mat4 wallPlate = glm::translate(base, glm::vec3(8.34f, 2.45f, 0.15f));
+	wallPlate = glm::rotate(wallPlate, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+	wallPlate = glm::scale(wallPlate, glm::vec3(0.52f, 0.10f, 0.52f));
+	drawMesh(cylinderMesh, shader, view, projection, wallPlate, housingColor);
+
+	glm::mat4 bracket = glm::translate(base, glm::vec3(8.08f, 2.45f, 0.15f));
+	bracket = glm::rotate(bracket, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+	bracket = glm::scale(bracket, glm::vec3(0.10f, 0.52f, 0.10f));
+	drawMesh(cylinderMesh, shader, view, projection, bracket, glm::vec4(0.24f, 0.26f, 0.25f, 1.0f));
+
+	glm::mat4 shade = glm::translate(base, glm::vec3(7.88f, 2.45f, 0.15f));
+	shade = glm::rotate(shade, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+	shade = glm::scale(shade, glm::vec3(0.40f, 0.38f, 0.40f));
+	drawMesh(cylinderMesh, shader, view, projection, shade, housingColor);
+
+	glm::mat4 rim = glm::translate(base, glm::vec3(7.70f, 2.45f, 0.15f));
+	rim = glm::rotate(rim, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+	rim = glm::scale(rim, glm::vec3(0.47f, 0.075f, 0.47f));
+	drawMesh(cylinderMesh, shader, view, projection, rim, glm::vec4(0.30f, 0.31f, 0.29f, 1.0f));
+
+	glm::mat4 bulb = glm::translate(base, glm::vec3(7.64f, 2.45f, 0.15f));
+	bulb = glm::rotate(bulb, PI * 0.5f, glm::vec3(0.0f, 0.0f, 1.0f));
+	bulb = glm::scale(bulb, glm::vec3(0.31f, 0.065f, 0.31f));
+	drawUnlitMesh(
+		cylinderMesh,
+		shader,
+		view,
+		projection,
+		bulb,
+		lampOn ? glm::vec4(1.0f, 0.82f, 0.46f, 1.0f) : glm::vec4(0.22f, 0.20f, 0.16f, 1.0f)
+	);
+}
+
+void EngineSimulator::drawWorkLamp(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
+	const glm::mat4 base(1.0f);
+	const glm::vec3 standBase(5.35f, -4.98f, -1.85f);
+	const glm::vec3 poleFoot(5.35f, -4.91f, -1.85f);
+	const glm::vec3 hinge(5.35f, 0.05f, -1.85f);
+	const glm::vec3 head(5.18f, 0.85f, -1.78f);
+	const glm::vec3 target(0.0f, -0.10f, 0.0f);
+	const glm::vec3 lightDirection = glm::normalize(target - head);
+
+	const auto alignCylinderBetween = [](const glm::vec3& start, const glm::vec3& end, float radius) {
+		const glm::vec3 direction = end - start;
+		const float length = glm::length(direction);
+		glm::mat4 model = glm::translate(glm::mat4(1.0f), (start + end) * 0.5f);
+		if (length > 0.0001f) {
+			const glm::vec3 up(0.0f, 1.0f, 0.0f);
+			const glm::vec3 normalizedDirection = direction / length;
+			const float cosine = glm::clamp(glm::dot(up, normalizedDirection), -1.0f, 1.0f);
+			glm::vec3 axis = glm::cross(up, normalizedDirection);
+			if (glm::length(axis) < 0.0001f) {
+				axis = glm::vec3(1.0f, 0.0f, 0.0f);
+			} else {
+				axis = glm::normalize(axis);
+			}
+			model = glm::rotate(model, std::acos(cosine), axis);
+		}
+		return glm::scale(model, glm::vec3(radius, length, radius));
+	};
+
+	glm::mat4 floorBase = glm::translate(base, standBase);
+	floorBase = glm::scale(floorBase, glm::vec3(0.78f, 0.12f, 0.78f));
+	drawMesh(cylinderMesh, shader, view, projection, floorBase, glm::vec4(0.15f, 0.16f, 0.16f, 1.0f));
+
+	glm::mat4 upperBase = glm::translate(base, glm::vec3(standBase.x, -4.86f, standBase.z));
+	upperBase = glm::scale(upperBase, glm::vec3(0.55f, 0.13f, 0.55f));
+	drawMesh(cylinderMesh, shader, view, projection, upperBase, glm::vec4(0.23f, 0.24f, 0.23f, 1.0f));
+
+	glm::mat4 poleSocket = glm::translate(base, glm::vec3(standBase.x, -4.70f, standBase.z));
+	poleSocket = glm::scale(poleSocket, glm::vec3(0.24f, 0.30f, 0.24f));
+	drawMesh(cylinderMesh, shader, view, projection, poleSocket, glm::vec4(0.32f, 0.33f, 0.31f, 1.0f));
+
+	for (float angle : {0.0f, 2.0f * PI / 3.0f, 4.0f * PI / 3.0f}) {
+		const glm::vec3 direction(std::cos(angle), 0.0f, std::sin(angle));
+		const glm::vec3 footStart = standBase + direction * 0.18f + glm::vec3(0.0f, 0.05f, 0.0f);
+		const glm::vec3 footEnd = standBase + direction * 0.72f + glm::vec3(0.0f, 0.05f, 0.0f);
+		glm::mat4 stabilizer = glm::translate(base, (footStart + footEnd) * 0.5f);
+		stabilizer = glm::rotate(stabilizer, -angle, glm::vec3(0.0f, 1.0f, 0.0f));
+		stabilizer = glm::scale(stabilizer, glm::vec3(0.56f, 0.08f, 0.15f));
+		drawMesh(boxMesh, shader, view, projection, stabilizer, glm::vec4(0.17f, 0.18f, 0.18f, 1.0f));
+	}
+
+	drawMesh(
+		cylinderMesh,
+		shader,
+		view,
+		projection,
+		alignCylinderBetween(poleFoot, hinge + glm::vec3(0.0f, 0.12f, 0.0f), 0.115f),
+		glm::vec4(0.31f, 0.33f, 0.32f, 1.0f)
+	);
+	drawMesh(
+		cylinderMesh,
+		shader,
+		view,
+		projection,
+		alignCylinderBetween(hinge - glm::vec3(0.0f, 0.10f, 0.0f), head + lightDirection * 0.10f, 0.095f),
+		glm::vec4(0.34f, 0.35f, 0.32f, 1.0f)
+	);
+
+	for (const glm::vec3 joint : {hinge, head}) {
+		glm::mat4 jointModel = glm::translate(base, joint);
+		jointModel = glm::scale(jointModel, glm::vec3(0.22f, 0.22f, 0.22f));
+		drawMesh(cylinderMesh, shader, view, projection, jointModel, glm::vec4(0.16f, 0.17f, 0.17f, 1.0f));
+	}
+
+	glm::mat4 lowerCollar = glm::translate(base, glm::vec3(standBase.x, -4.43f, standBase.z));
+	lowerCollar = glm::scale(lowerCollar, glm::vec3(0.16f, 0.10f, 0.16f));
+	drawMesh(cylinderMesh, shader, view, projection, lowerCollar, glm::vec4(0.13f, 0.14f, 0.14f, 1.0f));
+
+	glm::mat4 hingeCollar = glm::translate(base, hinge - glm::vec3(0.0f, 0.10f, 0.0f));
+	hingeCollar = glm::scale(hingeCollar, glm::vec3(0.16f, 0.12f, 0.16f));
+	drawMesh(cylinderMesh, shader, view, projection, hingeCollar, glm::vec4(0.13f, 0.14f, 0.14f, 1.0f));
+
+	const glm::vec3 shadeBack = head - lightDirection * 0.18f;
+	const glm::vec3 shadeFront = head + lightDirection * 0.34f;
+	drawMesh(
+		cylinderMesh,
+		shader,
+		view,
+		projection,
+		alignCylinderBetween(shadeBack, shadeFront, 0.30f),
+		glm::vec4(0.16f, 0.18f, 0.18f, 1.0f)
+	);
+
+	const glm::vec3 rimCenter = head + lightDirection * 0.37f;
+	const glm::vec3 rimEnd = rimCenter + lightDirection * 0.06f;
+	drawMesh(
+		cylinderMesh,
+		shader,
+		view,
+		projection,
+		alignCylinderBetween(rimCenter, rimEnd, 0.35f),
+		glm::vec4(0.34f, 0.35f, 0.32f, 1.0f)
+	);
+
+	const glm::vec3 bulbBack = head + lightDirection * 0.40f;
+	const glm::vec3 bulbFront = bulbBack + lightDirection * 0.055f;
+	drawUnlitMesh(
+		cylinderMesh,
+		shader,
+		view,
+		projection,
+		alignCylinderBetween(bulbBack, bulbFront, 0.25f),
+		lampOn ? glm::vec4(1.0f, 0.84f, 0.50f, 1.0f) : glm::vec4(0.22f, 0.20f, 0.16f, 1.0f)
+	);
 }
 
 void EngineSimulator::drawWorkshopStand(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
@@ -1230,17 +1420,37 @@ void EngineSimulator::drawMesh(const EngineMesh& mesh, ShaderProgram* shader, co
 	drawTexturedMesh(mesh, shader, view, projection, model, color, chooseTexture(color));
 }
 
+void EngineSimulator::drawUnlitMesh(const EngineMesh& mesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model, const glm::vec4& color) const {
+	shader->use();
+	glUniformMatrix4fv(shader->u("P"), 1, false, glm::value_ptr(projection));
+	glUniformMatrix4fv(shader->u("V"), 1, false, glm::value_ptr(view));
+	glUniformMatrix4fv(shader->u("M"), 1, false, glm::value_ptr(model));
+	glUniform4fv(shader->u("color"), 1, glm::value_ptr(color));
+	glUniform1i(shader->u("useTexture"), 0);
+	glUniform1i(shader->u("unlit"), 1);
+	mesh.draw();
+}
+
 void EngineSimulator::drawTexturedMesh(const EngineMesh& mesh, ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model, const glm::vec4& color, unsigned int texture) const {
 	shader->use();
 	glUniformMatrix4fv(shader->u("P"), 1, false, glm::value_ptr(projection));
 	glUniformMatrix4fv(shader->u("V"), 1, false, glm::value_ptr(view));
 	glUniformMatrix4fv(shader->u("M"), 1, false, glm::value_ptr(model));
 	glUniform4fv(shader->u("color"), 1, glm::value_ptr(color));
-	glUniform4f(shader->u("lightDir"), 0.0f, 0.0f, 1.0f, 0.0f);
-	glUniform3f(shader->u("dirLightDirView"), -0.35f, -0.85f, -0.35f);
-	glUniform3f(shader->u("pointLightPosView"), 2.2f, 3.2f, 3.2f);
+	const glm::vec3 dirLightView = glm::normalize(glm::mat3(view) * glm::vec3(-0.35f, -0.85f, -0.35f));
+	const glm::vec3 lampPositionView = glm::vec3(view * glm::vec4(7.72f, 2.45f, 0.15f, 1.0f));
+	const glm::vec3 lampDirectionView = glm::normalize(glm::mat3(view) * glm::normalize(glm::vec3(-7.72f, -2.25f, -0.15f)));
+	const glm::vec3 workLightPositionView = glm::vec3(view * glm::vec4(5.18f, 0.85f, -1.78f, 1.0f));
+	const glm::vec3 workLightDirectionView = glm::normalize(glm::mat3(view) * glm::normalize(glm::vec3(-5.18f, -0.95f, 1.78f)));
+	glUniform3fv(shader->u("dirLightDirView"), 1, glm::value_ptr(dirLightView));
+	glUniform3fv(shader->u("pointLightPosView"), 1, glm::value_ptr(lampPositionView));
+	glUniform3fv(shader->u("spotDirectionView"), 1, glm::value_ptr(lampDirectionView));
+	glUniform3fv(shader->u("workLightPosView"), 1, glm::value_ptr(workLightPositionView));
+	glUniform3fv(shader->u("workSpotDirectionView"), 1, glm::value_ptr(workLightDirectionView));
+	glUniform1f(shader->u("lampIntensity"), lampOn ? 1.0f : 0.0f);
 	glUniform1f(shader->u("shininess"), 48.0f);
 	glUniform1f(shader->u("specularStrength"), 0.42f);
+	glUniform1i(shader->u("unlit"), 0);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glUniform1i(shader->u("texture0"), 0);

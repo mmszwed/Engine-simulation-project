@@ -21,10 +21,12 @@ Sterowanie:
 
 Program startuje w pauzie, z minimalnym gazem.
 
-- `A/D` - obrot kamery,
+- `A/D` - obrot kamery w lewo/prawo,
+- `W/S` - obrot kamery w gore/dol,
 - `Q/E` - oddalenie/przyblizenie,
 - `1/2/3/4` - presety kamery,
-- `W/S` - gaz,
+- `strzalka gora/dol` - gaz,
+- `L` - wlaczenie/wylaczenie lamp warsztatowych i dynamicznych cieni,
 - `SPACE` - pauza/wznowienie,
 - `R` - reset animacji, RPM i gazu oraz powrot do pauzy,
 - `ESC` - wyjscie.
@@ -98,7 +100,8 @@ Zakres:
 
 Status:
 
-- `W/S` zmienia gaz,
+- `strzalka gora/dol` zmienia gaz,
+- `L` przelacza lampy warsztatowe i shadow mapping silnika,
 - RPM plynnie dochodzi do wartosci docelowej,
 - `SPACE` przelacza pauze pojedynczym nacisnieciem,
 - `R` resetuje animacje, RPM i gaz oraz wraca do pauzy,

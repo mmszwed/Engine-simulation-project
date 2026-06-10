@@ -2,6 +2,18 @@
 
 Projekt jest przygotowany tak, zeby dalo sie go budowac przez `Makefile` na macOS oraz Windowsie z MSYS2/MinGW.
 
+## Sterowanie
+
+- `A/D` - obrot kamery w lewo/prawo,
+- `W/S` - obrot kamery w gore/dol,
+- `Q/E` - oddalenie/przyblizenie,
+- `1/2/3/4` - presety kamery,
+- `strzalka gora/dol` - zwiekszenie/zmniejszenie gazu,
+- `SPACE` - pauza/wznowienie,
+- `R` - reset silnika,
+- `L` - wlaczenie/wylaczenie lamp warsztatowych i dynamicznych cieni,
+- `ESC` - wyjscie.
+
 ## macOS
 
 ### 1. Instalacja narzedzi

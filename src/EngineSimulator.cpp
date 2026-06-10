@@ -28,7 +28,8 @@ EngineSimulator::EngineSimulator()
 	  rubberTexture(0),
 	  woodTexture(0),
 	  garageWallTexture(0),
-	  concreteFloorTexture(0) {
+	  concreteFloorTexture(0),
+	  castAluminumTexture(0) {
 	// Inline-four crank pairs: 1+4 together, 2+3 opposite.
 	// Cycle offsets produce the conventional 1-3-4-2 firing order.
 	cylinders.emplace_back(0, -2.1f, 0.0f, 360.0f);
@@ -134,6 +135,7 @@ void EngineSimulator::initTextures() {
 	woodTexture = loadPngTexture("textures/wood_planks_dirt_diff_2k.png");
 	garageWallTexture = loadPngTexture("textures/painted_metal_shutter_disp_4k.png");
 	concreteFloorTexture = loadPngTexture("textures/hangar_concrete_floor_disp_4k.png");
+	castAluminumTexture = loadPngTexture("textures/worn_mossy_plasterwall_disp_4k.png");
 }
 
 void EngineSimulator::destroyTextures() {
@@ -143,12 +145,14 @@ void EngineSimulator::destroyTextures() {
 	if (woodTexture != 0) glDeleteTextures(1, &woodTexture);
 	if (garageWallTexture != 0) glDeleteTextures(1, &garageWallTexture);
 	if (concreteFloorTexture != 0) glDeleteTextures(1, &concreteFloorTexture);
+	if (castAluminumTexture != 0) glDeleteTextures(1, &castAluminumTexture);
 	metalTexture = 0;
 	darkMetalTexture = 0;
 	rubberTexture = 0;
 	woodTexture = 0;
 	garageWallTexture = 0;
 	concreteFloorTexture = 0;
+	castAluminumTexture = 0;
 }
 
 unsigned int EngineSimulator::createProceduralTexture(int variant) const {
@@ -306,10 +310,9 @@ void EngineSimulator::drawWorkshopStand(ShaderProgram* shader, const glm::mat4& 
 	const glm::mat4 base(1.0f);
 	const glm::vec4 woodColor(0.72f, 0.66f, 0.54f, 1.0f);
 	const glm::vec4 frameColor(0.18f, 0.20f, 0.20f, 1.0f);
-	const glm::vec4 mountColor(0.42f, 0.44f, 0.42f, 1.0f);
 
-	glm::mat4 top = glm::translate(base, glm::vec3(0.0f, -2.38f, 0.0f));
-	top = glm::scale(top, glm::vec3(8.6f, 0.30f, 4.3f));
+	glm::mat4 top = glm::translate(base, glm::vec3(0.0f, -2.48f, 0.0f));
+	top = glm::scale(top, glm::vec3(8.6f, 0.24f, 4.3f));
 	drawTexturedMesh(boxMesh, shader, view, projection, top, woodColor, woodTexture);
 
 	for (float x : {-3.45f, 3.45f}) {
@@ -336,19 +339,15 @@ void EngineSimulator::drawWorkshopStand(ShaderProgram* shader, const glm::mat4& 
 		drawMesh(boxMesh, shader, view, projection, sideBrace, frameColor);
 	}
 
-	for (float x : {-2.20f, 2.20f}) {
-		for (float z : {-0.46f, 0.46f}) {
-			glm::mat4 rubberPad = glm::translate(base, glm::vec3(x, -2.17f, z));
-			rubberPad = glm::scale(rubberPad, glm::vec3(0.40f, 0.12f, 0.40f));
+	for (float x : {-2.00f, 2.00f}) {
+		for (float z : {-0.34f, 0.34f}) {
+			glm::mat4 mount = glm::translate(base, glm::vec3(x, -2.245f, z));
+			mount = glm::scale(mount, glm::vec3(0.42f, 0.13f, 0.34f));
+			drawMesh(cylinderMesh, shader, view, projection, mount, glm::vec4(0.42f, 0.44f, 0.42f, 1.0f));
+
+			glm::mat4 rubberPad = glm::translate(base, glm::vec3(x, -2.335f, z));
+			rubberPad = glm::scale(rubberPad, glm::vec3(0.54f, 0.05f, 0.42f));
 			drawMesh(cylinderMesh, shader, view, projection, rubberPad, glm::vec4(0.10f, 0.11f, 0.11f, 1.0f));
-
-			glm::mat4 mount = glm::translate(base, glm::vec3(x, -2.04f, z));
-			mount = glm::scale(mount, glm::vec3(0.30f, 0.18f, 0.30f));
-			drawMesh(cylinderMesh, shader, view, projection, mount, mountColor);
-
-			glm::mat4 bolt = glm::translate(base, glm::vec3(x, -1.91f, z));
-			bolt = glm::scale(bolt, glm::vec3(0.075f, 0.14f, 0.075f));
-			drawMesh(cylinderMesh, shader, view, projection, bolt, glm::vec4(0.22f, 0.23f, 0.22f, 1.0f));
 		}
 	}
 }
@@ -358,7 +357,7 @@ void EngineSimulator::drawFuelCanister(ShaderProgram* shader, const glm::mat4& v
 	const glm::vec4 canColor(0.62f, 0.10f, 0.075f, 1.0f);
 	const glm::vec4 canEdgeColor(0.34f, 0.055f, 0.045f, 1.0f);
 	const glm::vec4 hoseColor(0.055f, 0.065f, 0.065f, 1.0f);
-	const glm::vec3 canCenter(3.55f, -1.58f, 1.15f);
+	const glm::vec3 canCenter(3.55f, -1.71f, 1.15f);
 
 	const auto alignCylinderBetween = [](const glm::vec3& start, const glm::vec3& end, float radius) {
 		const glm::vec3 direction = end - start;
@@ -450,59 +449,50 @@ void EngineSimulator::drawFuelCanister(ShaderProgram* shader, const glm::mat4& v
 }
 
 void EngineSimulator::drawEngineBlockCutaway(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
-	const glm::vec4 blockColor(0.57f, 0.58f, 0.53f, 1.0f);
-	const glm::vec4 edgeColor(0.12f, 0.44f, 0.64f, 1.0f);
+	const glm::vec4 blockColor(0.72f, 0.74f, 0.70f, 1.0f);
+	const glm::vec4 innerColor(0.45f, 0.48f, 0.46f, 1.0f);
+	const glm::vec4 panColor(0.52f, 0.54f, 0.50f, 1.0f);
 	const glm::mat4 base = glm::mat4(1.0f);
 
 	glm::mat4 rearCrankcaseWall = glm::translate(base, glm::vec3(0.0f, -1.48f, 0.66f));
 	rearCrankcaseWall = glm::scale(rearCrankcaseWall, glm::vec3(5.9f, 0.58f, 0.24f));
-	drawMesh(boxMesh, shader, view, projection, rearCrankcaseWall, blockColor);
+	drawTexturedMesh(boxMesh, shader, view, projection, rearCrankcaseWall, blockColor, castAluminumTexture);
 
-	glm::mat4 frontCrankcaseRail = glm::translate(base, glm::vec3(0.0f, -1.48f, -0.62f));
-	frontCrankcaseRail = glm::scale(frontCrankcaseRail, glm::vec3(5.9f, 0.58f, 0.14f));
-	drawMesh(boxMesh, shader, view, projection, frontCrankcaseRail, edgeColor);
+	glm::mat4 panFlange = glm::translate(base, glm::vec3(0.0f, -1.73f, 0.18f));
+	panFlange = glm::scale(panFlange, glm::vec3(5.90f, 0.14f, 1.28f));
+	drawTexturedMesh(boxMesh, shader, view, projection, panFlange, blockColor, castAluminumTexture);
 
-	glm::mat4 oilPan = glm::translate(base, glm::vec3(0.0f, -1.90f, 0.22f));
-	oilPan = glm::scale(oilPan, glm::vec3(5.55f, 0.30f, 1.05f));
-	drawMesh(boxMesh, shader, view, projection, oilPan, glm::vec4(0.36f, 0.38f, 0.35f, 1.0f));
+	glm::mat4 upperPan = glm::translate(base, glm::vec3(0.0f, -1.89f, 0.18f));
+	upperPan = glm::scale(upperPan, glm::vec3(5.78f, 0.22f, 1.18f));
+	drawTexturedMesh(boxMesh, shader, view, projection, upperPan, panColor, castAluminumTexture);
+
+	glm::mat4 lowerSump = glm::translate(base, glm::vec3(0.0f, -2.075f, 0.18f));
+	lowerSump = glm::scale(lowerSump, glm::vec3(5.66f, 0.21f, 1.08f));
+	drawTexturedMesh(boxMesh, shader, view, projection, lowerSump, glm::vec4(0.44f, 0.46f, 0.43f, 1.0f), castAluminumTexture);
 
 	glm::mat4 rearOilShelf = glm::translate(base, glm::vec3(0.0f, -1.16f, 0.66f));
 	rearOilShelf = glm::scale(rearOilShelf, glm::vec3(5.65f, 0.10f, 0.22f));
-	drawMesh(boxMesh, shader, view, projection, rearOilShelf, glm::vec4(0.50f, 0.52f, 0.48f, 1.0f));
-
-	glm::mat4 frontOilShelf = glm::translate(base, glm::vec3(0.0f, -1.16f, -0.62f));
-	frontOilShelf = glm::scale(frontOilShelf, glm::vec3(5.65f, 0.10f, 0.12f));
-	drawMesh(boxMesh, shader, view, projection, frontOilShelf, edgeColor);
+	drawTexturedMesh(boxMesh, shader, view, projection, rearOilShelf, blockColor, castAluminumTexture);
 
 	glm::mat4 rearWall = glm::translate(base, glm::vec3(0.0f, -0.18f, 0.78f));
 	rearWall = glm::scale(rearWall, glm::vec3(5.9f, 2.35f, 0.18f));
-	drawMesh(boxMesh, shader, view, projection, rearWall, glm::vec4(0.48f, 0.50f, 0.47f, 1.0f));
-
-	glm::mat4 frontLip = glm::translate(base, glm::vec3(0.0f, -1.32f, -0.58f));
-	frontLip = glm::scale(frontLip, glm::vec3(5.9f, 0.58f, 0.16f));
-	drawMesh(boxMesh, shader, view, projection, frontLip, edgeColor);
-
-	glm::mat4 leftWall = glm::translate(base, glm::vec3(-3.05f, -0.10f, 0.12f));
-	leftWall = glm::scale(leftWall, glm::vec3(0.22f, 2.25f, 1.35f));
-	drawMesh(boxMesh, shader, view, projection, leftWall, blockColor);
+	drawTexturedMesh(boxMesh, shader, view, projection, rearWall, blockColor, castAluminumTexture);
 
 	glm::mat4 rightWall = glm::translate(base, glm::vec3(3.05f, -0.10f, 0.12f));
 	rightWall = glm::scale(rightWall, glm::vec3(0.22f, 2.25f, 1.35f));
-	drawMesh(boxMesh, shader, view, projection, rightWall, blockColor);
+	drawTexturedMesh(boxMesh, shader, view, projection, rightWall, blockColor, castAluminumTexture);
+
+	glm::mat4 timingRearPost = glm::translate(base, glm::vec3(-2.82f, -0.20f, 0.70f));
+	timingRearPost = glm::scale(timingRearPost, glm::vec3(0.14f, 2.10f, 0.16f));
+	drawTexturedMesh(boxMesh, shader, view, projection, timingRearPost, blockColor, castAluminumTexture);
 
 	for (int i = 0; i < 3; ++i) {
 		const float x = -1.4f + i * 1.4f;
 		glm::mat4 web = glm::translate(base, glm::vec3(x, -0.30f, 0.48f));
 		web = glm::scale(web, glm::vec3(0.18f, 1.65f, 0.72f));
-		drawMesh(boxMesh, shader, view, projection, web, glm::vec4(0.44f, 0.47f, 0.45f, 1.0f));
+		drawMesh(boxMesh, shader, view, projection, web, innerColor);
 	}
 
-	for (int i = 0; i < 9; ++i) {
-		const float x = -2.8f + i * 0.7f;
-		glm::mat4 railBolt = glm::translate(base, glm::vec3(x, -1.05f, -0.70f));
-		railBolt = glm::scale(railBolt, glm::vec3(0.055f, 0.10f, 0.055f));
-		drawMesh(cylinderMesh, shader, view, projection, railBolt, glm::vec4(0.12f, 0.13f, 0.13f, 1.0f));
-	}
 }
 
 void EngineSimulator::drawCrankshaftAssembly(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
@@ -1195,32 +1185,44 @@ void EngineSimulator::drawManifolds(ShaderProgram* shader, const glm::mat4& view
 }
 
 void EngineSimulator::drawStatusPanel(ShaderProgram* shader, const glm::mat4& view, const glm::mat4& projection) const {
-	const glm::mat4 base = glm::mat4(1.0f);
-	const glm::vec3 panelOrigin(4.35f, 0.45f, -0.95f);
+	const glm::mat4 world(1.0f);
+	glm::mat4 base = glm::translate(world, glm::vec3(3.70f, -2.02f, -1.20f));
+	base = glm::rotate(base, 48.0f * PI / 180.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+	const glm::vec3 panelOrigin(0.0f);
+
+	glm::mat4 consoleBase = glm::translate(world, glm::vec3(3.70f, -2.33f, -1.18f));
+	consoleBase = glm::scale(consoleBase, glm::vec3(1.20f, 0.06f, 0.90f));
+	drawMesh(boxMesh, shader, view, projection, consoleBase, glm::vec4(0.12f, 0.14f, 0.15f, 1.0f));
+
+	for (float x : {3.38f, 4.02f}) {
+		glm::mat4 support = glm::translate(world, glm::vec3(x, -2.08f, -0.96f));
+		support = glm::scale(support, glm::vec3(0.08f, 0.46f, 0.08f));
+		drawMesh(boxMesh, shader, view, projection, support, glm::vec4(0.28f, 0.30f, 0.29f, 1.0f));
+	}
 
 	glm::mat4 panel = glm::translate(base, panelOrigin);
-	panel = glm::scale(panel, glm::vec3(1.35f, 1.55f, 0.08f));
+	panel = glm::scale(panel, glm::vec3(1.10f, 1.58f, 0.07f));
 	drawMesh(boxMesh, shader, view, projection, panel, glm::vec4(0.10f, 0.12f, 0.13f, 1.0f));
 
-	glm::mat4 rpmTrack = glm::translate(base, panelOrigin + glm::vec3(0.0f, 0.35f, -0.08f));
-	rpmTrack = glm::scale(rpmTrack, glm::vec3(1.05f, 0.12f, 0.04f));
+	glm::mat4 rpmTrack = glm::translate(base, panelOrigin + glm::vec3(0.0f, 0.43f, -0.050f));
+	rpmTrack = glm::scale(rpmTrack, glm::vec3(0.86f, 0.10f, 0.025f));
 	drawMesh(boxMesh, shader, view, projection, rpmTrack, glm::vec4(0.25f, 0.27f, 0.28f, 1.0f));
 
 	const float rpmFillValue = std::clamp((rpm - 120.0f) / 1080.0f, 0.0f, 1.0f);
-	glm::mat4 rpmFill = glm::translate(base, panelOrigin + glm::vec3(-0.525f + 0.525f * rpmFillValue, 0.35f, -0.12f));
-	rpmFill = glm::scale(rpmFill, glm::vec3(1.05f * rpmFillValue, 0.13f, 0.05f));
+	glm::mat4 rpmFill = glm::translate(base, panelOrigin + glm::vec3(-0.43f + 0.43f * rpmFillValue, 0.43f, -0.066f));
+	rpmFill = glm::scale(rpmFill, glm::vec3(0.86f * rpmFillValue, 0.11f, 0.022f));
 	drawMesh(boxMesh, shader, view, projection, rpmFill, glm::vec4(0.20f, 0.55f, 0.78f, 1.0f));
 
-	glm::mat4 throttleTrack = glm::translate(base, panelOrigin + glm::vec3(0.0f, -0.10f, -0.08f));
-	throttleTrack = glm::scale(throttleTrack, glm::vec3(1.05f, 0.12f, 0.04f));
+	glm::mat4 throttleTrack = glm::translate(base, panelOrigin + glm::vec3(0.0f, -0.06f, -0.050f));
+	throttleTrack = glm::scale(throttleTrack, glm::vec3(0.86f, 0.10f, 0.025f));
 	drawMesh(boxMesh, shader, view, projection, throttleTrack, glm::vec4(0.25f, 0.27f, 0.28f, 1.0f));
 
-	glm::mat4 throttleFill = glm::translate(base, panelOrigin + glm::vec3(-0.525f + 0.525f * throttle, -0.10f, -0.12f));
-	throttleFill = glm::scale(throttleFill, glm::vec3(1.05f * throttle, 0.13f, 0.05f));
+	glm::mat4 throttleFill = glm::translate(base, panelOrigin + glm::vec3(-0.43f + 0.43f * throttle, -0.06f, -0.066f));
+	throttleFill = glm::scale(throttleFill, glm::vec3(0.86f * throttle, 0.11f, 0.022f));
 	drawMesh(boxMesh, shader, view, projection, throttleFill, glm::vec4(0.78f, 0.48f, 0.16f, 1.0f));
 
-	glm::mat4 pauseLamp = glm::translate(base, panelOrigin + glm::vec3(0.0f, -0.58f, -0.12f));
-	pauseLamp = glm::scale(pauseLamp, glm::vec3(0.32f, 0.32f, 0.06f));
+	glm::mat4 pauseLamp = glm::translate(base, panelOrigin + glm::vec3(0.0f, -0.34f, -0.062f));
+	pauseLamp = glm::scale(pauseLamp, glm::vec3(0.27f, 0.27f, 0.035f));
 	drawMesh(cylinderMesh, shader, view, projection, pauseLamp, paused ? glm::vec4(0.75f, 0.18f, 0.12f, 1.0f) : glm::vec4(0.16f, 0.55f, 0.30f, 1.0f));
 }
 

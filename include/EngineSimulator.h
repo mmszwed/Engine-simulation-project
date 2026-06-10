@@ -44,6 +44,7 @@ private:
 	unsigned int woodTexture;
 	unsigned int garageWallTexture;
 	unsigned int concreteFloorTexture;
+	unsigned int castAluminumTexture;
 	std::vector<Cylinder> cylinders;
 
 	void initMeshes();

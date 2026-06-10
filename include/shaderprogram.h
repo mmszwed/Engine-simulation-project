@@ -45,11 +45,6 @@ public:
 
 
 
-extern ShaderProgram* spConstant;
-extern ShaderProgram* spLambert;
-extern ShaderProgram* spTextured;
-extern ShaderProgram* spColored;
-extern ShaderProgram* spLambertTextured;
 extern ShaderProgram* spEngine;
 extern ShaderProgram* spShadow;
 

@@ -11,14 +11,9 @@ add_executable(engine_simulator
     src/Cylinder.cpp
     src/EngineMeshes.cpp
     src/EngineSimulator.cpp
-    src/cube.cpp
     src/lodepng.cpp
     src/main_file.cpp
-    src/model.cpp
     src/shaderprogram.cpp
-    src/sphere.cpp
-    src/teapot.cpp
-    src/torus.cpp
 )
 
 target_include_directories(engine_simulator PRIVATE

@@ -4,8 +4,8 @@ CXX=g++
 EXEEXT :=
 
 COMMON_CXXFLAGS=-std=c++17 -Wall -Wextra -Iinclude -Ithird_party
-SRC=src/CameraController.cpp src/Cylinder.cpp src/EngineMeshes.cpp src/EngineSimulator.cpp src/cube.cpp src/lodepng.cpp src/main_file.cpp src/model.cpp src/shaderprogram.cpp src/sphere.cpp src/teapot.cpp src/torus.cpp
-HEADERS=include/CameraController.h include/Cylinder.h include/EngineMeshes.h include/EngineSimulator.h include/allmodels.h include/constants.h include/cube.h include/lodepng.h include/model.h include/myCube.h include/shaderprogram.h include/sphere.h include/teapot.h include/torus.h
+SRC=src/CameraController.cpp src/Cylinder.cpp src/EngineMeshes.cpp src/EngineSimulator.cpp src/lodepng.cpp src/main_file.cpp src/shaderprogram.cpp
+HEADERS=include/CameraController.h include/Cylinder.h include/EngineMeshes.h include/EngineSimulator.h include/constants.h include/lodepng.h include/shaderprogram.h
 
 ifeq ($(OS),Windows_NT)
 APP_NAME=$(APP).exe
